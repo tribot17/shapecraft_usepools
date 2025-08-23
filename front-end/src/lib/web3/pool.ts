@@ -3,22 +3,24 @@ import { PoolABI } from "../ABI/PoolABI";
 import { PoolFactoryABI } from "../ABI/PoolFactoryABI";
 import { getSignerProvider, POOL_FACTORY_ADDRESS } from "./config";
 
-class Pool {
-  private poolContract: ethers.Contract;
+export class PoolService {
+  private poolContract?: ethers.Contract;
   private poolFactory: ethers.Contract;
 
-  constructor(poolAddress: string, privateKey: string, chainId: number) {
-    this.poolContract = new ethers.Contract(
-      poolAddress,
-      PoolABI,
-      getSignerProvider(chainId, privateKey)
-    );
-
+  constructor(poolAddress: string | null, privateKey: string, chainId: number) {
     this.poolFactory = new ethers.Contract(
       POOL_FACTORY_ADDRESS[chainId],
       PoolFactoryABI,
       getSignerProvider(chainId, privateKey)
     );
+
+    if (poolAddress !== null) {
+      this.poolContract = new ethers.Contract(
+        poolAddress,
+        PoolABI,
+        getSignerProvider(chainId, privateKey)
+      );
+    }
   }
 
   async createPool({
@@ -26,20 +28,18 @@ class Pool {
     creatorFee,
     name,
     symbol,
-    poolAddress,
   }: {
     nftCollectionAddress: string;
-    creatorFee: number;
+    creatorFee: string;
     name: string;
     symbol: string;
-    poolAddress: string;
   }) {
     const tx = await this.poolFactory.createPool(
       nftCollectionAddress,
       creatorFee,
       name,
       symbol,
-      poolAddress
+      false
     );
     return await tx.wait();
   }

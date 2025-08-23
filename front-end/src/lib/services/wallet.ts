@@ -1,5 +1,10 @@
 import { ethers } from "ethers";
 import {
+  getAllWalletBalances,
+  getWalletBalance as getWalletBalanceFromDB,
+  updateWalletBalance,
+} from "models/WalletBalance";
+import {
   createManagedWallet as createWalletInDB,
   deleteManagedWalletByWalletId,
   getManagedWalletByWalletId,
@@ -13,13 +18,19 @@ export interface CreateWalletParams {
   name?: string;
 }
 
+export interface WalletBalance {
+  chainId: number;
+  balance: string;
+  balanceETH: string;
+  lastSyncedAt: Date;
+}
+
 export interface WalletWithBalance {
   id: string;
   walletId: string;
   address: string;
   name?: string;
-  balance: string;
-  balanceETH: string;
+  balances: WalletBalance[];
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -29,6 +40,7 @@ export interface SendTransactionParams {
   walletId: string;
   to: string;
   value: string;
+  chainId?: number;
   gasLimit?: string;
   gasPrice?: string;
   data?: string;
@@ -85,12 +97,33 @@ async function getWalletWithPrivateKey(
 }
 
 export async function getWalletBalance(
-  walletId: string
+  walletId: string,
+  chainId: number = 360
 ): Promise<{ balance: string; balanceETH: string }> {
   try {
-    const provider = getProvider();
+    // D'abord, chercher en base de données
+    const cachedBalance = await getWalletBalanceFromDB(walletId, chainId);
+
+    // Si la balance est en cache et récente (moins de 1 minute), l'utiliser
+    const oneMinuteAgo = new Date(Date.now() - 60000);
+    if (cachedBalance && cachedBalance.lastSyncedAt > oneMinuteAgo) {
+      return {
+        balance: cachedBalance.balance,
+        balanceETH: cachedBalance.balanceETH,
+      };
+    }
+
+    // Sinon, récupérer depuis la blockchain
+    const provider = getProvider(chainId);
     const balance = await provider.getBalance(walletId);
     const balanceETH = ethers.formatEther(balance);
+
+    // Mettre à jour en base
+    await updateWalletBalance(walletId, chainId, {
+      balance: balance.toString(),
+      balanceETH,
+      lastSyncedAt: new Date(),
+    });
 
     return {
       balance: balance.toString(),
@@ -99,6 +132,49 @@ export async function getWalletBalance(
   } catch (error) {
     console.error("Error getting wallet balance:", error);
     throw new Error("Failed to get wallet balance");
+  }
+}
+
+export async function getAllWalletBalancesForWallet(
+  walletId: string
+): Promise<WalletBalance[]> {
+  try {
+    const balances = await getAllWalletBalances(walletId);
+
+    // Si pas de balances en cache, récupérer pour les chaînes principales
+    if (balances.length === 0) {
+      const mainChains = [360, 11011]; // Shape mainnet et testnet
+      const newBalances = [];
+
+      for (const chainId of mainChains) {
+        try {
+          const { balance, balanceETH } = await getWalletBalance(
+            walletId,
+            chainId
+          );
+          newBalances.push({
+            chainId,
+            balance,
+            balanceETH,
+            lastSyncedAt: new Date(),
+          });
+        } catch (error) {
+          console.error(`Error getting balance for chain ${chainId}:`, error);
+        }
+      }
+
+      return newBalances;
+    }
+
+    return balances.map((b) => ({
+      chainId: b.chainId,
+      balance: b.balance,
+      balanceETH: b.balanceETH,
+      lastSyncedAt: b.lastSyncedAt,
+    }));
+  } catch (error) {
+    console.error("Error getting all wallet balances:", error);
+    throw new Error("Failed to get wallet balances");
   }
 }
 
@@ -111,23 +187,21 @@ export async function getUserWallets(
     const walletsWithBalance = await Promise.all(
       wallets.map(async (wallet) => {
         try {
-          const { balance, balanceETH } = await getWalletBalance(
-            wallet.walletId
-          );
+          const balances = await getAllWalletBalancesForWallet(wallet.walletId);
+
           return {
             id: wallet.id,
             walletId: wallet.walletId,
             address: wallet.address,
             name: wallet.name ?? undefined,
-            balance,
-            balanceETH,
+            balances,
             isActive: wallet.isActive,
             createdAt: wallet.createdAt,
             updatedAt: wallet.updatedAt,
           };
         } catch (error) {
           console.error(
-            `Error getting balance for wallet ${wallet.walletId}:`,
+            `Error getting balances for wallet ${wallet.walletId}:`,
             error
           );
           return {
@@ -135,8 +209,7 @@ export async function getUserWallets(
             walletId: wallet.walletId,
             address: wallet.address,
             name: wallet.name ?? undefined,
-            balance: "0",
-            balanceETH: "0",
+            balances: [],
             isActive: wallet.isActive,
             createdAt: wallet.createdAt,
             updatedAt: wallet.updatedAt,
@@ -156,6 +229,7 @@ export async function sendTransaction({
   walletId,
   to,
   value,
+  chainId = 360,
   gasLimit,
   gasPrice,
   data = "0x",
@@ -163,7 +237,7 @@ export async function sendTransaction({
   try {
     const wallet = await getWalletWithPrivateKey(walletId);
 
-    const provider = getProvider();
+    const provider = getProvider(chainId);
     const connectedWallet = wallet.connect(provider);
 
     const valueWei = ethers.parseEther(value);

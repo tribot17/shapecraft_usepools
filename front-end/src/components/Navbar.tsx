@@ -86,6 +86,18 @@ export function Navbar() {
               >
                 Home
               </button>
+              <button
+                onClick={() => router.push("/pools")}
+                className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+              >
+                Pools
+              </button>
+              <button
+                onClick={() => router.push("/debug/events")}
+                className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+              >
+                Debug Events
+              </button>
               {isAuthenticated && (
                 <button
                   onClick={() => router.push("/dashboard")}
@@ -266,6 +278,24 @@ export function Navbar() {
                 className="text-gray-600 hover:text-gray-900 block px-3 py-2 rounded-md text-base font-medium w-full text-left"
               >
                 Home
+              </button>
+              <button
+                onClick={() => {
+                  router.push("/pools");
+                  setIsMenuOpen(false);
+                }}
+                className="text-gray-600 hover:text-gray-900 block px-3 py-2 rounded-md text-base font-medium w-full text-left"
+              >
+                Pools
+              </button>
+              <button
+                onClick={() => {
+                  router.push("/debug/events");
+                  setIsMenuOpen(false);
+                }}
+                className="text-gray-600 hover:text-gray-900 block px-3 py-2 rounded-md text-base font-medium w-full text-left"
+              >
+                Debug Events
               </button>
               {isAuthenticated && (
                 <button

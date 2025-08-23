@@ -27,7 +27,6 @@ export async function getManagedWallets(userId: string) {
     where: { userId, isActive: true },
     orderBy: { createdAt: "desc" },
     include: {
-      pools: true,
       transactions: {
         take: 10,
         orderBy: { createdAt: "desc" },

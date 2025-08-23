@@ -12,7 +12,7 @@ datasource db {
 
 model User {
   id            String   @id @default(cuid())
-  walletAddress String   @unique // Adresse du wallet principal de l'utilisateur
+  walletAddress String   @unique 
   privyUserId   String   @unique
   name          String?
   avatar        String?
@@ -21,7 +21,8 @@ model User {
 
   // Relations
   managedWallets ManagedWallet[]
-  pools          Pool[]
+  createdPools   Pool[] @relation("PoolCreator")
+  poolParticipations PoolParticipant[]
   transactions   Transaction[]
 
   @@map("users")
@@ -31,43 +32,76 @@ model ManagedWallet {
   id             String   @id @default(cuid())
   walletId       String   @unique 
   address        String   @unique 
-  encryptedPrivateKey String // Clé privée chiffrée
+  encryptedPrivateKey String 
   name           String?  
   isActive       Boolean  @default(true)
   userId         String
-  lastBalance    String?
-  lastSyncedAt   DateTime?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-
   // Relations
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  pools       Pool[]
+  balances    WalletBalance[]
   transactions Transaction[]
 
   @@map("managed_wallets")
 }
 
-model Pool {
+model WalletBalance {
   id              String   @id @default(cuid())
-  name            String
-  description     String?
-  nftCollection   String   // Adresse du contrat NFT
-  poolType        PoolType
-  status          PoolStatus @default(ACTIVE)
-  totalValue      Float    @default(0)
-  userId          String
-  managedWalletId String
+  walletId        String
+  chainId         Int
+  balance         String   @default("0") // Balance en wei
+  balanceETH      String   @default("0") // Balance en ETH pour affichage
+  lastSyncedAt    DateTime @default(now())
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   // Relations
-  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  managedWallet   ManagedWallet @relation(fields: [managedWalletId], references: [id], onDelete: Cascade)
+  wallet          ManagedWallet @relation(fields: [walletId], references: [walletId], onDelete: Cascade)
+
+  // Un wallet ne peut avoir qu'une seule balance par chaîne
+  @@unique([walletId, chainId])
+  @@map("wallet_balances")
+}
+
+model Pool {
+  id              String   @id @default(cuid())
+  name            String
+  nftCollection   String  
+  creatorFee      Float    @default(0)
+  poolAddress     String   
+  poolType        PoolType
+  status          PoolStatus @default(FUNDING)
+  buyPrice        String
+  sellPrice       String
+  totalContribution Float @default(0)
+  creatorId       String   
+  chainId         Int      @default(360)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  creator         User         @relation("PoolCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  participants    PoolParticipant[]
   transactions    Transaction[]
 
   @@map("pools")
+}
+
+model PoolParticipant {
+  id            String   @id @default(cuid())
+  poolId        String
+  userId        String
+  contribution  Float    @default(0)
+  joinedAt      DateTime @default(now())
+  isActive      Boolean  @default(true)
+
+  // Relations
+  pool          Pool     @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("pool_participants")
 }
 
 model Transaction {
@@ -76,7 +110,7 @@ model Transaction {
   type            TransactionType
   amount          Float
   tokenAddress    String?       // Adresse du token (null pour ETH)
-  nftTokenId      String?       // ID du NFT si applicable
+  chainId         Int           // ChainId de la transaction
   status          TransactionStatus @default(PENDING)
   userId          String
   managedWalletId String
@@ -93,14 +127,15 @@ model Transaction {
 }
 
 enum PoolType {
-  BUY
-  SELL
-  HOLD
-  TRADE
+  TOKEN
+  COLLECTION
 }
 
 enum PoolStatus {
-  ACTIVE
+  FUNDING
+  OFFER
+  LISTING
+  SOLD
   PAUSED
   CLOSED
 }

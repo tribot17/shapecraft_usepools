@@ -1,5 +1,6 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getChainId } from "wagmi/actions";
+import { config } from "../wagmi";
 
 export interface WalletWithBalance {
   id: string;
@@ -39,7 +40,7 @@ export interface TransactionResult {
  */
 export function useWallets(userId?: string) {
   const queryClient = useQueryClient();
-
+  const chainId = getChainId(config);
   // Récupérer les wallets de l'utilisateur
   const {
     data: wallets,
@@ -50,7 +51,7 @@ export function useWallets(userId?: string) {
     queryKey: ["wallets", userId],
     queryFn: async (): Promise<WalletWithBalance[]> => {
       if (!userId) return [];
-      
+
       const response = await fetch(`/api/wallets?userId=${userId}`);
       if (!response.ok) {
         throw new Error("Failed to fetch wallets");
@@ -87,20 +88,25 @@ export function useWallets(userId?: string) {
 
   // Envoyer une transaction
   const sendTransactionMutation = useMutation({
-    mutationFn: async (data: SendTransactionData): Promise<TransactionResult> => {
-      const response = await fetch(`/api/wallets/${data.walletId}/transactions`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          to: data.to,
-          value: data.value,
-          gasLimit: data.gasLimit,
-          gasPrice: data.gasPrice,
-          data: data.data,
-        }),
-      });
+    mutationFn: async (
+      data: SendTransactionData
+    ): Promise<TransactionResult> => {
+      const response = await fetch(
+        `/api/wallets/${data.walletId}/transactions`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            to: data.to,
+            value: data.value,
+            gasLimit: data.gasLimit,
+            gasPrice: data.gasPrice,
+            data: data.data,
+          }),
+        }
+      );
 
       if (!response.ok) {
         const error = await response.json();
@@ -117,7 +123,9 @@ export function useWallets(userId?: string) {
   });
 
   // Estimer le gas
-  const estimateGas = async (data: Omit<SendTransactionData, "gasLimit" | "gasPrice">) => {
+  const estimateGas = async (
+    data: Omit<SendTransactionData, "gasLimit" | "gasPrice">
+  ) => {
     const params = new URLSearchParams({
       to: data.to,
       value: data.value,
@@ -159,24 +167,25 @@ export function useWallets(userId?: string) {
   return {
     // Data
     wallets: wallets || [],
-    
+    chainId,
+
     // Loading states
     isLoading,
     isCreatingWallet: createWalletMutation.isPending,
     isSendingTransaction: sendTransactionMutation.isPending,
-    
+
     // Errors
     error,
     createWalletError: createWalletMutation.error,
     sendTransactionError: sendTransactionMutation.error,
-    
+
     // Actions
     createWallet: createWalletMutation.mutate,
     sendTransaction: sendTransactionMutation.mutate,
     estimateGas,
     signMessage,
     refetchWallets: refetch,
-    
+
     // Success states
     createWalletSuccess: createWalletMutation.isSuccess,
     sendTransactionSuccess: sendTransactionMutation.isSuccess,
@@ -188,9 +197,9 @@ export function useWallets(userId?: string) {
  */
 export function useWallet(walletId?: string, userId?: string) {
   const { wallets, ...rest } = useWallets(userId);
-  
-  const wallet = wallets.find(w => w.walletId === walletId);
-  
+
+  const wallet = wallets.find((w) => w.walletId === walletId);
+
   return {
     wallet,
     ...rest,
