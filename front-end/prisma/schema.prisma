@@ -1,0 +1,80 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  password  String
+  avatar    String?
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  posts    Post[]
+  comments Comment[]
+
+  @@map("users")
+}
+
+model Post {
+  id          String   @id @default(cuid())
+  title       String
+  content     String
+  published   Boolean  @default(false)
+  authorId    String
+  categoryId  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  category  Category? @relation(fields: [categoryId], references: [id])
+  comments  Comment[]
+
+  @@map("posts")
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  authorId  String
+  postId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@map("comments")
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  posts Post[]
+
+  @@map("categories")
+}
+
+enum Role {
+  USER
+  ADMIN
+  MODERATOR
+}
