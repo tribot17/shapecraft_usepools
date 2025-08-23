@@ -24,6 +24,8 @@ model User {
   createdPools   Pool[] @relation("PoolCreator")
   poolParticipations PoolParticipant[]
   transactions   Transaction[]
+  autoInvestmentRules AutoInvestmentRule[]
+  autoInvestments    AutoInvestment[]
 
   @@map("users")
 }
@@ -43,6 +45,7 @@ model ManagedWallet {
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   balances    WalletBalance[]
   transactions Transaction[]
+  autoInvestmentRules AutoInvestmentRule[]
 
   @@map("managed_wallets")
 }
@@ -85,6 +88,7 @@ model Pool {
   creator         User         @relation("PoolCreator", fields: [creatorId], references: [id], onDelete: Cascade)
   participants    PoolParticipant[]
   transactions    Transaction[]
+  autoInvestments AutoInvestment[]
 
   @@map("pools")
 }
@@ -108,9 +112,9 @@ model Transaction {
   id              String        @id @default(cuid())
   txHash          String        @unique
   type            TransactionType
-  amount          Float
-  tokenAddress    String?       // Adresse du token (null pour ETH)
-  chainId         Int           // ChainId de la transaction
+  amount          String
+  tokenAddress    String?       
+  chainId         Int           
   status          TransactionStatus @default(PENDING)
   userId          String
   managedWalletId String
@@ -151,6 +155,74 @@ enum TransactionType {
 enum TransactionStatus {
   PENDING
   CONFIRMED
+  FAILED
+  CANCELLED
+}
+
+// Modèles pour l'auto-investment
+model AutoInvestmentRule {
+  id                    String              @id @default(cuid())
+  userId                String
+  name                  String
+  isActive              Boolean             @default(true)
+  
+  // Critères de matching
+  maxBuyPrice           Float?              // Prix d'achat maximum
+  minSellPrice          Float?              // Prix de vente minimum
+  maxCreatorFee         Float?              // Frais créateur maximum (%)
+  allowedCollections    String[]            // Collections NFT autorisées
+  poolTypes             PoolType[]          // Types de pools autorisés
+  chains                Int[]               // ChainIds autorisés
+  
+  // Paramètres d'investissement
+  investmentAmount      Float               // Montant à investir
+  maxInvestmentPerDay   Float?              // Limite journalière
+  walletId              String              // Wallet utilisé pour investir
+  
+  // Conditions supplémentaires
+  minPoolAge            Int?                // Age minimum de la pool (minutes)
+  requireVerifiedCreator Boolean            @default(false)
+  
+  // Métadonnées
+  totalInvested         Float               @default(0)
+  totalInvestments      Int                 @default(0)
+  lastTriggered         DateTime?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  // Relations
+  user                  User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wallet                ManagedWallet       @relation(fields: [walletId], references: [id])
+  investments           AutoInvestment[]
+
+  @@map("auto_investment_rules")
+}
+
+model AutoInvestment {
+  id                    String              @id @default(cuid())
+  ruleId                String
+  poolId                String
+  userId                String
+  amount                Float
+  txHash                String?
+  status                AutoInvestmentStatus @default(PENDING)
+  executedAt            DateTime?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  // Relations
+  rule                  AutoInvestmentRule  @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  pool                  Pool                @relation(fields: [poolId], references: [id])
+  user                  User                @relation(fields: [userId], references: [id])
+
+  @@unique([ruleId, poolId])
+  @@map("auto_investments")
+}
+
+enum AutoInvestmentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
   FAILED
   CANCELLED
 }

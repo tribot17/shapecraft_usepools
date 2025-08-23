@@ -43,4 +43,9 @@ export class PoolService {
     );
     return await tx.wait();
   }
+
+  async invest(amount: number) {
+    const tx = await this.poolContract?.invest({ value: amount });
+    return await tx.wait();
+  }
 }

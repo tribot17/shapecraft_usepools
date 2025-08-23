@@ -98,6 +98,12 @@ export function Navbar() {
               >
                 Debug Events
               </button>
+              <button
+                onClick={() => router.push("/auto-investment")}
+                className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+              >
+                🤖 Auto-Investment
+              </button>
               {isAuthenticated && (
                 <button
                   onClick={() => router.push("/dashboard")}
@@ -296,6 +302,15 @@ export function Navbar() {
                 className="text-gray-600 hover:text-gray-900 block px-3 py-2 rounded-md text-base font-medium w-full text-left"
               >
                 Debug Events
+              </button>
+              <button
+                onClick={() => {
+                  router.push("/auto-investment");
+                  setIsMenuOpen(false);
+                }}
+                className="text-gray-600 hover:text-gray-900 block px-3 py-2 rounded-md text-base font-medium w-full text-left"
+              >
+                🤖 Auto-Investment
               </button>
               {isAuthenticated && (
                 <button

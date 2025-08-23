@@ -58,3 +58,9 @@ export async function getPoolsByUserId(userId: string) {
     where: { userId },
   });
 }
+
+export async function getPoolByAddress(poolAddress: string) {
+  return await prisma.pool.findFirst({
+    where: { poolAddress },
+  });
+}
