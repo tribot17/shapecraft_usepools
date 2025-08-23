@@ -4,8 +4,9 @@ import {
   deleteManagedWalletByWalletId,
   getManagedWalletByWalletId,
   getManagedWallets as getWalletsFromDB,
-} from "../../../models/Wallets";
+} from "models/Wallets";
 import { decryptPrivateKey, encryptPrivateKey } from "../crypto/encryption";
+import { getProvider } from "../web3/config";
 
 export interface CreateWalletParams {
   userId: string;
@@ -27,7 +28,7 @@ export interface WalletWithBalance {
 export interface SendTransactionParams {
   walletId: string;
   to: string;
-  value: string; // en ETH
+  value: string;
   gasLimit?: string;
   gasPrice?: string;
   data?: string;
@@ -39,11 +40,6 @@ export interface TransactionResult {
   gasUsed?: string;
   status: "pending" | "confirmed" | "failed";
 }
-
-const RPC_URL_CONFIG = {
-  360: "https://shape-mainnet.g.alchemy.com/v2",
-  11011: "https://shape-sepolia.g.alchemy.com/v2",
-};
 
 export async function createManagedWallet({
   userId,
@@ -86,13 +82,6 @@ async function getWalletWithPrivateKey(
   const privateKey = decryptPrivateKey(managedWallet.encryptedPrivateKey);
 
   return new ethers.Wallet(privateKey);
-}
-
-function getProvider(
-  chainId: keyof typeof RPC_URL_CONFIG = 11011
-): ethers.JsonRpcProvider {
-  const rpcUrl = `${RPC_URL_CONFIG[chainId]}/${process.env.ALCHEMY_API_KEY}`;
-  return new ethers.JsonRpcProvider(rpcUrl);
 }
 
 export async function getWalletBalance(
