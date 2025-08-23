@@ -6,15 +6,11 @@ async function createFetchRequest(url: string, options: RequestInit) {
   return response.json();
 }
 
-function buildHeaders(token: string) {
+function buildHeaders(authorization: string) {
   const headers = {
     "Content-Type": "application/json",
-    Authorization: ``,
+    authorization,
   };
-
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
 
   return headers;
 }
@@ -33,23 +29,13 @@ async function buildRequest(
 
 async function executeRequest(
   url: string,
-  data: object,
+  data: object | null,
   method: string,
-  token: string = ""
+  authorization: string = ""
 ) {
-  const headers = buildHeaders(token);
+  const headers = buildHeaders(authorization);
   const body = data ? JSON.stringify(data) : undefined;
-  const response = await createFetchRequest(url, { method, headers, body });
-
-  if (!response.ok) {
-    console.log("🚀 ~ executeRequest ~ response:", response, url, method);
-
-    return {
-      error: response.error,
-    };
-  }
-
-  return await response.json();
+  return await createFetchRequest(url, { method, headers, body });
 }
 
 export { buildRequest, executeRequest };

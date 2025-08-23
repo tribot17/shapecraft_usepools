@@ -1,3 +1,4 @@
+import { Navbar } from "@/components/Navbar";
 import {
   AuthProvider,
   QueryProvider,
@@ -28,7 +29,10 @@ export default function RootLayout({
           <WagmiAppProvider>
             <QueryProvider>
               <ToastProvider>
-                <AuthProvider>{children}</AuthProvider>
+                <AuthProvider>
+                  <Navbar />
+                  {children}
+                </AuthProvider>
               </ToastProvider>
             </QueryProvider>
           </WagmiAppProvider>

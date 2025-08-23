@@ -11,70 +11,111 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  password  String
-  avatar    String?
-  role      Role     @default(USER)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(cuid())
+  walletAddress String   @unique // Adresse du wallet principal de l'utilisateur
+  privyUserId   String   @unique
+  name          String?
+  avatar        String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   // Relations
-  posts    Post[]
-  comments Comment[]
+  managedWallets ManagedWallet[]
+  pools          Pool[]
+  transactions   Transaction[]
 
   @@map("users")
 }
 
-model Post {
-  id          String   @id @default(cuid())
-  title       String
-  content     String
-  published   Boolean  @default(false)
-  authorId    String
-  categoryId  String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+model ManagedWallet {
+  id             String   @id @default(cuid())
+  walletId       String   @unique 
+  address        String   @unique 
+  encryptedPrivateKey String // Clé privée chiffrée
+  name           String?  
+  isActive       Boolean  @default(true)
+  userId         String
+  lastBalance    String?
+  lastSyncedAt   DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
 
   // Relations
-  author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  category  Category? @relation(fields: [categoryId], references: [id])
-  comments  Comment[]
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pools       Pool[]
+  transactions Transaction[]
 
-  @@map("posts")
+  @@map("managed_wallets")
 }
 
-model Comment {
-  id        String   @id @default(cuid())
-  content   String
-  authorId  String
-  postId    String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model Pool {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+  nftCollection   String   // Adresse du contrat NFT
+  poolType        PoolType
+  status          PoolStatus @default(ACTIVE)
+  totalValue      Float    @default(0)
+  userId          String
+  managedWalletId String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   // Relations
-  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  managedWallet   ManagedWallet @relation(fields: [managedWalletId], references: [id], onDelete: Cascade)
+  transactions    Transaction[]
 
-  @@map("comments")
+  @@map("pools")
 }
 
-model Category {
-  id          String   @id @default(cuid())
-  name        String   @unique
-  description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+model Transaction {
+  id              String        @id @default(cuid())
+  txHash          String        @unique
+  type            TransactionType
+  amount          Float
+  tokenAddress    String?       // Adresse du token (null pour ETH)
+  nftTokenId      String?       // ID du NFT si applicable
+  status          TransactionStatus @default(PENDING)
+  userId          String
+  managedWalletId String
+  poolId          String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
   // Relations
-  posts Post[]
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  managedWallet   ManagedWallet @relation(fields: [managedWalletId], references: [id], onDelete: Cascade)
+  pool            Pool?         @relation(fields: [poolId], references: [id])
 
-  @@map("categories")
+  @@map("transactions")
 }
 
-enum Role {
-  USER
-  ADMIN
-  MODERATOR
+enum PoolType {
+  BUY
+  SELL
+  HOLD
+  TRADE
+}
+
+enum PoolStatus {
+  ACTIVE
+  PAUSED
+  CLOSED
+}
+
+enum TransactionType {
+  BUY
+  SELL
+  TRANSFER
+  DEPOSIT
+  WITHDRAW
+}
+
+enum TransactionStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+  CANCELLED
 }

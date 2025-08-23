@@ -28,6 +28,7 @@ export function useWalletAuth() {
 
     try {
       const proof = await generateOwnershipProof(address);
+      console.log("🚀 ~ useWalletAuth ~ proof:", proof);
 
       const response = await signIn("wallet", {
         address: proof.walletAddress,
