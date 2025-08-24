@@ -121,6 +121,34 @@ export default function ChatSidebar() {
               </svg>
               Wallets
             </Link>
+            <Link
+              href="/test-pool"
+              className="flex items-center gap-2 text-sm text-white/60 hover:text-white transition-colors"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                className="w-4 h-4"
+              >
+                <path d="M12 2.25c5.385 0 9.75 4.365 9.75 9.75s4.365 9.75 9.75 9.75-9.75-4.365-9.75-9.75S17.385 2.25 12 2.25ZM12.75 6a.75.75 0 0 0-1.5 0v6c0 .414.336.75.75.75h4.5a.75.75 0 0 0 0-1.5h-3.75V6Z" />
+              </svg>
+              🧪 Test Pool
+            </Link>
+            <Link
+              href="/test-usepools"
+              className="flex items-center gap-2 text-sm text-white/60 hover:text-white transition-colors"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                className="w-4 h-4"
+              >
+                <path d="M9.53 2.47a.75.75 0 0 1 0 1.06L4.81 8.25H15a6.75 6.75 0 0 1 0 13.5h-3a.75.75 0 0 1 0-1.5h3a5.25 5.25 0 1 0 0-10.5H4.81l4.72 4.72a.75.75 0 1 1-1.06 1.06l-6-6a.75.75 0 0 1 0-1.06l6-6a.75.75 0 0 1 1.06 0Z" />
+              </svg>
+              🌊 Test UsePools
+            </Link>
             <div className="h-px bg-white/5" />
             <span className="text-sm font-medium text-white">All Chats</span>
           </div>

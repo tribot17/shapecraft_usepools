@@ -30,7 +30,7 @@ export async function createPool({
       name,
       nftCollection: nftCollectionAddress,
       poolAddress,
-      poolType,
+      poolType: poolType || PoolType.COLLECTION,
       status: PoolStatus.FUNDING,
       creatorFee,
       buyPrice: buyPrice.toString(),
