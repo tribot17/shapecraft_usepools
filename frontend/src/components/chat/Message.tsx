@@ -1,6 +1,8 @@
 "use client";
 
 import { ReactNode } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface MessageProps {
   isUser?: boolean;
@@ -30,8 +32,12 @@ export default function Message({ isUser = false, children }: MessageProps) {
           isUser ? 'bg-blue-600/10' : 'bg-white/5'
         } rounded-[4px] py-1.5 px-2 max-w-[80%] backdrop-blur-sm shadow-sm`}
       >
-        <div className="prose prose-invert max-w-none text-[11px] leading-[16px] [&>p]:my-0 [&>ul]:my-1 [&>ul]:pl-3">
-          {children}
+        <div className="prose prose-invert max-w-none text-[11px] leading-[16px] [&>p]:my-0 [&>ul]:my-1 [&>ul]:pl-3 [&>h2]:text-sm [&>h2]:font-bold [&>h2]:mb-2 [&>h2]:mt-1 [&>strong]:font-semibold [&>ol]:my-1 [&>ol]:pl-4">
+          {typeof children === 'string' ? (
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{children}</ReactMarkdown>
+          ) : (
+            children
+          )}
         </div>
       </div>
     </div>

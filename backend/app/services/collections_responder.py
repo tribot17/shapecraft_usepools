@@ -21,7 +21,7 @@ class CollectionsResponder:
         else:
             self.client = OpenAI(api_key=key)
 
-    async def generate_volume_response(self, user_question: str, raw_data: Dict[str, Any], min_volume: float, days: int) -> str:
+    async def generate_volume_response(self, user_question: str, raw_data: Dict[str, Any]) -> str:
         """Generate a natural language response from volume data.
         
         Args:
@@ -33,13 +33,18 @@ class CollectionsResponder:
         Returns:
             Natural language response summarizing the volume data
         """
-        if not self.client:
-            return f"Found collections with at least {min_volume:,.0f} ETH volume in the last {days} days. OpenAI client not configured."
         
         try:
             system_prompt = (
-                "You are an NFT market analyst."
-                "Simply return the 'name', 'description' and 'url' of the elements appearing in the data"
+                "You are an NFT market analyst. Generate a beautifully formatted response using markdown styling. "
+                "Use emojis, bold text, and proper formatting to make the response visually appealing. "
+                "Structure your response as follows:\n"
+                "1. Start with an engaging title using ## and relevant emojis\n"
+                "2. List the names of the top collections with numbered format, using **bold** for collection names\n"
+                "4. End with a call-to-action about creating pools using emojis and formatting\n"
+                "5. Mention the data is sorted by volume in descending order\n"
+                "6. Do not include URLs in the response\n"
+                "Make it engaging and visually striking!"
             )
             
             user_prompt = (
@@ -63,7 +68,6 @@ class CollectionsResponder:
             
         except Exception as e:
             logger.warning("[CollectionsResponder] LLM failed for volume: %s", e)
-            return f"Found collections with at least {min_volume:,.0f} ETH volume in the last {days} days. Check the raw data for detailed information."
 
     async def generate_collections_response(self, user_question: str, raw_data: Dict[str, Any], order_by: str, limit: int) -> str:
         """Generate a natural language response from collections data.
@@ -82,8 +86,16 @@ class CollectionsResponder:
         
         try:
             system_prompt = (
-                "You are an NFT market analyst."
-                "Provide the names of the nft collections appearing in the data along with the url"
+                "You are an NFT market analyst. Generate a beautifully formatted response using markdown styling. "
+                "Use emojis, bold text, and proper formatting to make the response visually appealing. "
+                "Structure your response as follows:\n"
+                "1. Start with an engaging title using ## and relevant emojis\n"
+                "2. List the top collections with numbered format, using **bold** for collection names\n"
+                "3. Add relevant emojis for each collection (🚀 for top performers, 💎 for valuable, ⭐ for popular)\n"
+                "4. Include OpenSea URLs as clickable links: [Collection Name](URL)\n"
+                "5. Add brief insights about market cap, volume, or notable features\n"
+                "6. End with a call-to-action about exploring these collections\n"
+                "Make it engaging and visually striking!"
             )
             
             user_prompt = (
@@ -100,7 +112,7 @@ class CollectionsResponder:
                     {"role": "user", "content": user_prompt}
                 ],
                 temperature=0.7,
-                max_tokens=250
+                max_tokens=1000
             )
             
             reply = response.choices[0].message.content or ""
@@ -127,11 +139,16 @@ class CollectionsResponder:
         
         try:
             system_prompt = (
-                "You are an NFT trend analyst. Generate a concise, informative response about trending NFT collections. "
-                "Be conversational and highlight what's hot in the NFT market right now. "
-                "Focus on trending patterns, volume spikes, and emerging collections. "
-                "Use engaging language and make the trends accessible to all users. "
-                "Keep responses under 200 words and make them exciting."
+                "You are an NFT trend analyst. Generate a beautifully formatted response using markdown styling. "
+                "Use emojis, bold text, and proper formatting to make the response visually appealing. "
+                "Structure your response as follows:\n"
+                "1. Start with an engaging title using ## and trending emojis (📈, 🔥, ⚡)\n"
+                "2. List the trending collections with numbered format, using **bold** for collection names\n"
+                "3. Add relevant trending emojis for each collection (🔥 for hot, 📈 for rising, 💥 for explosive)\n"
+                "4. Include brief insights about 24h volume trends and momentum\n"
+                "5. End with a call-to-action about creating pools for trending collections\n"
+                "6. Use proper number formatting (e.g., '2.5K ETH', '1,234 sales')\n"
+                "Make it exciting and visually striking to capture the trending momentum!"
             )
             
             user_prompt = (
@@ -149,7 +166,7 @@ class CollectionsResponder:
                     {"role": "user", "content": user_prompt}
                 ],
                 temperature=0.7,
-                max_tokens=250
+                max_tokens=1000
             )
             
             reply = response.choices[0].message.content or ""
