@@ -10,6 +10,7 @@ class Settings(BaseSettings):
         "http://localhost:3001",
         "http://localhost:3002",
         "http://localhost:3003",
+        "https://shapecraft-usepools.vercel.app"
     ]
     PROJECT_NAME: str = "Scooby - NFT Companion API"
 
