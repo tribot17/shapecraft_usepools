@@ -66,6 +66,28 @@ export function decryptPrivateKey(encryptedData: string): string {
 }
 
 /**
+ * Backward-compatible decryptor.
+ * - First tries the strong scheme (base64 salt+iv+ciphertext with PBKDF2 key derivation)
+ * - If that fails, falls back to the legacy scheme used by /api/wallets (hex with optional iv prefix and password-based createDecipher)
+ */
+export function decryptPrivateKeyAny(encryptedData: string): string {
+  // Try new scheme
+  try {
+    return decryptPrivateKey(encryptedData);
+  } catch (_e) {
+    // Fallback to legacy scheme
+    const password = process.env.WALLET_ENCRYPTION_KEY || "your-secret-key-32-characters-long!";
+    // Legacy data format: ivHex:encryptedHex produced with createCipher/createDecipher (AES-256-CBC)
+    const parts = encryptedData.split(":");
+    const encryptedHex = parts.length === 2 ? parts[1] : encryptedData; // some old records may not include iv
+    const decipher = crypto.createDecipher(ALGORITHM, password);
+    let decrypted = decipher.update(encryptedHex, "hex", "utf8");
+    decrypted += decipher.final("utf8");
+    return decrypted;
+  }
+}
+
+/**
  * Generate a secure random encryption key (for initial setup)
  */
 export function generateEncryptionKey(): string {

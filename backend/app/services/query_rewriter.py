@@ -21,10 +21,15 @@ class QueryRewriter:
         "1. Fix grammar and spelling errors\n"
         "2. Add missing context from conversation history\n"
         "3. Convert relative times to absolute ones when possible (e.g., 'last 24h' -> 'past 24 hours')\n"
-        "4. Make collection, marketplace, and chain references explicit if implied\n"
-        "5. Preserve the user's original intent\n"
-        "6. Keep the rewritten query concise but complete\n"
-        "7. If the query references earlier messages, make them explicit in the rewrite\n"
+        "4. Preserve the user's original intent\n"
+        "5. Keep the rewritten query concise but complete\n"
+        "6. If the user asks for a pool, do not assume it's a liquidity pool and thus do not rewrite it. "
+
+
+        "Examples:\n"
+        "eg. hllo -> hello"
+        "create a pool -> create a pool"
+        ""
     )
 
     def __init__(self, api_key: str | None = None) -> None:

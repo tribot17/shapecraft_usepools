@@ -90,4 +90,14 @@ class OpenSeaClient:
 
         return await self._get("/collections", params)
 
+    async def get_collection(self, slug: str) -> Dict[str, Any]:
+        """Fetch details for a single collection by slug.
+
+        The OpenSea v2 API supports: GET /collections/{collection_slug}
+        """
+        slug = slug.strip().split("/")[-1]
+        if not slug:
+            raise ValueError("Invalid collection slug")
+        return await self._get(f"/collections/{slug}")
+
 

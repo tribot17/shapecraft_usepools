@@ -34,9 +34,26 @@ export default function ChatSidebar() {
     async function load() {
       try {
         const uid = user?.id;
-        const url = uid
-          ? `${API_BASE}/chat/conversations?user_id=${encodeURIComponent(uid)}`
-          : `${API_BASE}/chat/conversations`;
+        const wallet = user?.walletAddress;
+
+        // Ensure backend user exists for this wallet (idempotent)
+        if (wallet) {
+          try {
+            await fetch(`${API_BASE}/auth/wallet-login`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ address: wallet }),
+            });
+          } catch {}
+        }
+
+        // Prefer wallet-based conversations so backend can resolve/create user
+        let url = `${API_BASE}/chat/conversations`;
+        if (wallet) {
+          url = `${API_BASE}/chat/conversations?wallet_address=${encodeURIComponent(wallet)}`;
+        } else if (uid) {
+          url = `${API_BASE}/chat/conversations?user_id=${encodeURIComponent(uid)}`;
+        }
         const res = await fetch(url);
         if (!res.ok) return;
         const data: Array<{
@@ -58,7 +75,7 @@ export default function ChatSidebar() {
       } catch {}
     }
     load();
-  }, [user?.id, API_BASE]);
+  }, [user?.id, user?.walletAddress, API_BASE]);
 
   const filteredChats = chats.filter((chat) =>
     chat.title.toLowerCase().includes(searchQuery.toLowerCase())

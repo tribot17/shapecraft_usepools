@@ -4,7 +4,8 @@ import { useWeb3 } from "@/hooks/useWeb3";
 import { UserRequest } from "@/requests/User";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { UserWithManagedWallets } from "models/Users";
-import { signIn, signOut, useSession } from "next-auth/react";
+import { signIn, signOut as nextAuthSignOut, useSession } from "next-auth/react";
+import { useDisconnect } from "wagmi";
 import { usePathname } from "next/navigation";
 import { createContext, useContext, useEffect, useState } from "react";
 
@@ -34,6 +35,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     isConnected: isWalletConnected,
     generateOwnershipProof,
   } = useWeb3();
+  const { disconnect } = useDisconnect();
 
   const publicRoutes = ["/", "/chat"];
   const isPublicRoute =
@@ -107,7 +109,19 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     userLoading,
     fetchUser,
     signIn: handleSignIn,
-    signOut,
+    signOut: async () => {
+      try {
+        // Disconnect wallet session
+        disconnect();
+      } catch {}
+      try {
+        await nextAuthSignOut({ redirect: false });
+      } catch {}
+      try {
+        localStorage.removeItem("scoobyUser");
+      } catch {}
+      setUser(null);
+    },
   };
 
   if (isInitializing) {
