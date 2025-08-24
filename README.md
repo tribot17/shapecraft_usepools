@@ -60,7 +60,7 @@ https://github.com/tribot17/shapecraft_usepools/blob/main/pool_management.mp4
 
 ## 🔗 Smart Contracts
 
-For this project, we exported our smart contracts from Ethereum to Shape Network for better performance and lower gas fees.
+For this project, we exported our smart contracts from Ethereum to Shape Network.
 
 **Smart Contracts on Shape Network:**
 
@@ -72,26 +72,17 @@ For this project, we exported our smart contracts from Ethereum to Shape Network
 1. **User Interaction**: Users chat with our AI agent about NFT collections they're interested in
 2. **AI Analysis**: The AI analyzes the collection, checks prices, and determines if pooling is beneficial
 3. **Pool Creation**: If beneficial, the AI automatically creates a pool for the collection
-4. **User Matching**: The AI finds other users with similar interests and invites them to join
-5. **Investment Execution**: Once the pool reaches the target, the AI automatically invests in the NFT
-6. **Fractional Ownership**: Users receive fractional ownership tokens representing their share
+4. **Investment Execution**: Once the pool reaches the target, the AI automatically invests in the NFT
+5. **Fractional Ownership**: Users receive fractional ownership tokens representing their share
 
 ## 🔗 Useful Links
 
 - **Live Demo**: [https://shapecraft-usepools.vercel.app/](https://shapecraft-usepools.vercel.app/)
-- **Shape Network Explorer**: [https://sepolia.shapescan.xyz](https://sepolia.shapescan.xyz)
-- **OpenSea Integration**: [https://opensea.io](https://opensea.io)
-
-## 🙏 Acknowledgments
-
-- **OpenAI** for providing the AI capabilities
-- **OpenSea** for NFT marketplace integration
-- **Shape Network** for blockchain infrastructure
-- **UsePools** for pool management infrastructure
+- **Usepools preprod (to see in live created pool and investement)**: [https://usepools-git-preprod-use-pools.vercel.app/profile](https://usepools-git-preprod-use-pools.vercel.app/)
 
 ## 📞 Contact
 
-- **Project Link**: [https://github.com/tribot17/shapecraft_usepools](https://github.com/tribot17/shapecraft_usepools)
+- **Project Link**: [[https://usepools](https://www.usepools.com/))
 - **Team**: POOLS Development Team
 
 ---
