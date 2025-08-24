@@ -42,6 +42,7 @@ export async function POST(req: Request) {
     chainId,
     collection_slug,
   } = body;
+  console.log("🚀 ~ POST ~ collection_slug:", collection_slug);
 
   const creatorPrivateKey = decryptPrivateKeyAny(
     creator.managedWallets[0].encryptedPrivateKey
@@ -85,6 +86,7 @@ export async function POST(req: Request) {
   const openseaCollection = await OpenSeaClient.getInstance().getCollection(
     collection_slug
   );
+  console.log("🚀 ~ POST ~ openseaCollection:", openseaCollection);
 
   const usepoolsSession = createSessionFromWallet(creator.walletAddress);
 
