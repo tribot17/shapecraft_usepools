@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import ChatSidebar from "@/components/chat/ChatSidebar";
+import { useConditionalWallet } from "@/hooks/useConditionalWallet";
 
 export default function ChatPage() {
   const router = useRouter();
@@ -12,22 +13,19 @@ export default function ChatPage() {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<Array<{ role: "user" | "assistant"; content: string }>>([]);
   const [userId, setUserId] = useState<string | null>(null);
+  const { user } = useConditionalWallet();
 
   const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
 
   const thinkingPhrases = [
     "Scooby is thinking...",
-    "Scooby is going to find the bone and come with your data...",
-    "Scooby is on its way!...",
+    "Scooby is looking for the bone...",
     "Thinking, wait a few seconds...",
-    "Sniffing the blockchain trail...",
-    "Fetching NFT bones from OpenSea...",
-    "Checking floors and volumes...",
-    "Wagging tail while crunching data...",
-    "Tracking trending collections...",
-    "Chasing market caps and owners...",
-    "Digging up 24h moves...",
-    "Scanning rarity and momentum...",
+    "Processing your request...",
+    "Processing...",
+    "Thinking...",
+    "Scooby is on it...",
+    "Give me "
   ];
 
   function detectIntent(input: string): { intent: "small_talk" | "opensea_trending" | "opensea_volume"; params?: Record<string, unknown> } {
@@ -60,9 +58,14 @@ export default function ChatPage() {
   }, [chatId]);
 
   async function sendToBackend(userText: string) {
+    return sendToBackendWithChatId(userText, chatId);
+  }
+
+  async function sendToBackendWithChatId(userText: string, conversationId: string | null) {
     const { intent, params } = detectIntent(userText);
     // Fetch latest user_id at send-time to cover recent logins
     let uid = userId;
+    const walletAddress = user?.walletAddress || null;
     try {
       if (!uid) {
         const raw = localStorage.getItem("scoobyUser");
@@ -72,7 +75,17 @@ export default function ChatPage() {
         }
       }
     } catch {}
-    const body = { intent, message: userText, params, conversation_id: chatId, user_id: uid } as const;
+    // Ensure backend has a user for this wallet (idempotent)
+    if (walletAddress) {
+      try {
+        await fetch(`${API_BASE}/auth/wallet-login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ address: walletAddress }),
+        });
+      } catch {}
+    }
+    const body = { intent, message: userText, params, conversation_id: conversationId, user_id: uid, wallet_address: walletAddress || undefined } as const;
     const res = await fetch(`${API_BASE}/chat/message`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -84,13 +97,53 @@ export default function ChatPage() {
     return (await res.json()) as { reply: string; data?: unknown };
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim()) return;
     
-    // Create a new chat and redirect to it
-    const newChatId = Math.random().toString(36).substring(7);
-    router.push(`/chat?id=${newChatId}`);
+    // If no chatId, create one and send the message immediately
+    if (!chatId) {
+      const newChatId = Math.random().toString(36).substring(7);
+      const userText = message.trim();
+      
+      // Add user message immediately
+      setMessages([{ role: "user", content: userText }]);
+      setMessage("");
+      
+      // Add thinking message
+      const placeholder = thinkingPhrases[Math.floor(Math.random() * thinkingPhrases.length)];
+      setMessages(prev => [...prev, { role: "assistant", content: placeholder }]);
+      
+      // Navigate to new chat
+      router.push(`/chat?id=${newChatId}`);
+      
+      // Send message to backend with new chat ID
+      try {
+        // Temporarily update the global chatId for the backend call
+        const resp = await sendToBackendWithChatId(userText, newChatId);
+        setMessages(prev => {
+          const copy = [...prev];
+          for (let i = copy.length - 1; i >= 0; i--) {
+            if (copy[i].role === "assistant" && thinkingPhrases.includes(copy[i].content)) {
+              copy[i] = { role: "assistant", content: resp.reply };
+              break;
+            }
+          }
+          return copy;
+        });
+      } catch (err) {
+        setMessages(prev => {
+          const copy = [...prev];
+          for (let i = copy.length - 1; i >= 0; i--) {
+            if (copy[i].role === "assistant" && thinkingPhrases.includes(copy[i].content)) {
+              copy[i] = { role: "assistant", content: "Sorry, I had trouble fetching that." };
+              return copy;
+            }
+          }
+          return [...prev, { role: "assistant", content: "Sorry, I had trouble fetching that." }];
+        });
+      }
+    }
   };
 
   return (

@@ -1,5 +1,5 @@
 import { authOptions } from "@/lib/auth";
-import { decryptPrivateKey } from "@/lib/crypto/encryption";
+import { decryptPrivateKeyAny } from "@/lib/crypto/encryption";
 import { getProvider } from "@/lib/web3/config";
 import { getEventFromTransaction } from "@/lib/web3/events";
 import { PoolService } from "@/services/Pool";
@@ -10,13 +10,25 @@ import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user.walletAddress) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const body = await req.json();
+  const internalCall = req.headers.get("x-internal-call");
+  
+  let walletAddress: string;
+  
+  // Check if this is an internal server-to-server call
+  if (internalCall === "true" && body.wallet_address) {
+    // Server-to-server call - use wallet_address from body
+    walletAddress = body.wallet_address;
+  } else {
+    // Regular user call - use session
+    const session = await getServerSession(authOptions);
+    if (!session?.user.walletAddress) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    walletAddress = session.user.walletAddress;
   }
 
-  const creator = await getUserByWalletAddress(session.user.walletAddress);
+  const creator = await getUserByWalletAddress(walletAddress);
 
   if (!creator) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -31,10 +43,10 @@ export async function POST(req: Request) {
     sellPrice,
     totalContribution,
     chainId,
-  } = await req.json();
+  } = body;
   console.log("🚀 ~ POST ~ chainId:", chainId);
 
-  const creatorPrivateKey = decryptPrivateKey(
+  const creatorPrivateKey = decryptPrivateKeyAny(
     creator.managedWallets[0].encryptedPrivateKey
   );
 

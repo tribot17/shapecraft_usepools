@@ -1,30 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
 import { ethers } from "ethers";
+import { encryptPrivateKey } from "@/lib/crypto/encryption";
 import { NextRequest, NextResponse } from "next/server";
 
 // Encryption helper functions
-const ENCRYPTION_KEY =
-  process.env.WALLET_ENCRYPTION_KEY || "your-secret-key-32-characters-long!";
+const ENCRYPTION_KEY = process.env.WALLET_ENCRYPTION_KEY;
 const ALGORITHM = "aes-256-cbc";
-
-function encrypt(text: string): string {
-  const iv = crypto.randomBytes(16);
-  const cipher = crypto.createCipher(ALGORITHM, ENCRYPTION_KEY);
-  let encrypted = cipher.update(text, "utf8", "hex");
-  encrypted += cipher.final("hex");
-  return iv.toString("hex") + ":" + encrypted;
-}
-
-function decrypt(text: string): string {
-  const parts = text.split(":");
-  const iv = Buffer.from(parts.shift()!, "hex");
-  const encryptedText = parts.join(":");
-  const decipher = crypto.createDecipher(ALGORITHM, ENCRYPTION_KEY);
-  let decrypted = decipher.update(encryptedText, "hex", "utf8");
-  decrypted += decipher.final("utf8");
-  return decrypted;
-}
 
 // GET /api/wallets - Get wallets for a user
 export async function GET(request: NextRequest) {
@@ -84,7 +66,8 @@ export async function POST(request: NextRequest) {
 
     // Generate new wallet
     const wallet = ethers.Wallet.createRandom();
-    const encryptedPrivateKey = encrypt(wallet.privateKey);
+    // Use centralized strong encryptor for new wallets
+    const encryptedPrivateKey = encryptPrivateKey(wallet.privateKey);
 
     // Create wallet in database
     const managedWallet = await prisma.managedWallet.create({

@@ -1,6 +1,6 @@
 import { ethers } from "ethers";
 import { getManagedWalletByWalletId } from "models/Wallets";
-import { decryptPrivateKey } from "../crypto/encryption";
+import { decryptPrivateKeyAny } from "../crypto/encryption";
 
 export async function getWalletWithPrivateKey(
   walletId: string
@@ -11,7 +11,7 @@ export async function getWalletWithPrivateKey(
     throw new Error("Wallet not found");
   }
 
-  const privateKey = decryptPrivateKey(managedWallet.encryptedPrivateKey);
+  const privateKey = decryptPrivateKeyAny(managedWallet.encryptedPrivateKey);
 
   return new ethers.Wallet(privateKey);
 }
