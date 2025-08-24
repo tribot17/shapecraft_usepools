@@ -28,7 +28,6 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [isInitializing, setIsInitializing] = useState(true);
   const [userLoading, setUserLoading] = useState(false);
   const { data: session, status } = useSession();
-  console.log("🚀 ~ UserProvider ~ session:", session);
   const pathname = usePathname();
 
   const {

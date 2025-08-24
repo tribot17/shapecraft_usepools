@@ -7,7 +7,6 @@ export interface CreatePoolParams {
   nftCollectionAddress: string;
   creatorFee: number;
   poolAddress: string;
-  poolType: PoolType;
   buyPrice: number;
   sellPrice: number;
   totalContribution: number;
@@ -19,7 +18,6 @@ export async function createPool({
   nftCollectionAddress,
   creatorFee,
   poolAddress,
-  poolType,
   buyPrice,
   sellPrice,
   totalContribution,
@@ -30,7 +28,7 @@ export async function createPool({
       name,
       nftCollection: nftCollectionAddress,
       poolAddress,
-      poolType,
+      poolType: PoolType.COLLECTION,
       status: PoolStatus.FUNDING,
       creatorFee,
       buyPrice: buyPrice.toString(),

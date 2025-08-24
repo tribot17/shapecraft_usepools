@@ -38,10 +38,10 @@ model ManagedWallet {
   name           String?  
   isActive       Boolean  @default(true)
   userId         String
+  usepools_id         String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  // Relations
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   balances    WalletBalance[]
   transactions Transaction[]
@@ -54,8 +54,8 @@ model WalletBalance {
   id              String   @id @default(cuid())
   walletId        String
   chainId         Int
-  balance         String   @default("0") // Balance en wei
-  balanceETH      String   @default("0") // Balance en ETH pour affichage
+  balance         String   @default("0") 
+  balanceETH      String   @default("0") 
   lastSyncedAt    DateTime @default(now())
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -63,13 +63,13 @@ model WalletBalance {
   // Relations
   wallet          ManagedWallet @relation(fields: [walletId], references: [walletId], onDelete: Cascade)
 
-  // Un wallet ne peut avoir qu'une seule balance par chaîne
   @@unique([walletId, chainId])
   @@map("wallet_balances")
 }
 
 model Pool {
   id              String   @id @default(cuid())
+  usepools_id     String?  @unique
   name            String
   nftCollection   String  
   creatorFee      Float    @default(0)
@@ -159,7 +159,6 @@ enum TransactionStatus {
   CANCELLED
 }
 
-// Modèles pour l'auto-investment
 model AutoInvestmentRule {
   id                    String              @id @default(cuid())
   userId                String
@@ -210,7 +209,6 @@ model AutoInvestment {
   createdAt             DateTime            @default(now())
   updatedAt             DateTime            @updatedAt
 
-  // Relations
   rule                  AutoInvestmentRule  @relation(fields: [ruleId], references: [id], onDelete: Cascade)
   pool                  Pool                @relation(fields: [poolId], references: [id])
   user                  User                @relation(fields: [userId], references: [id])

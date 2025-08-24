@@ -15,3 +15,11 @@ export async function getWalletWithPrivateKey(
 
   return new ethers.Wallet(privateKey);
 }
+
+export async function signMessageWithManagedWallet(
+  walletId: string,
+  message: string
+): Promise<string> {
+  const wallet = await getWalletWithPrivateKey(walletId);
+  return wallet.signMessage(message);
+}

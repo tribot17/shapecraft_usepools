@@ -1,5 +1,6 @@
 "use client";
 
+import { PoolAuthButton } from "@/components/auth/PoolAuthButton";
 import ChatSidebar from "@/components/chat/ChatSidebar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -348,6 +349,19 @@ function WalletPageContent() {
             </Card>
           ) : (
             <div className="space-y-6">
+              {/* Pool Connection */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Pool Connection</CardTitle>
+                  <CardDescription>
+                    Connect to UsePools for automated DeFi strategies
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <PoolAuthButton />
+                </CardContent>
+              </Card>
+
               {/* Network Selection */}
               <Card>
                 <CardHeader>

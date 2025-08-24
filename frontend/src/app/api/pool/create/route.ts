@@ -3,6 +3,7 @@ import { decryptPrivateKeyAny } from "@/lib/crypto/encryption";
 import { getProvider } from "@/lib/web3/config";
 import { getEventFromTransaction } from "@/lib/web3/events";
 import { PoolService } from "@/services/Pool";
+import { createSessionFromWallet, usePoolsClient } from "@/services/usepools";
 import { ethers } from "ethers";
 import { createPool } from "models/Pool";
 import { getUserByWalletAddress } from "models/Users";
@@ -38,11 +39,10 @@ export async function POST(req: Request) {
     name,
     nftCollectionAddress,
     creatorFee,
-    poolType,
     buyPrice,
     sellPrice,
-    totalContribution,
     chainId,
+    collection_slug,
   } = body;
   console.log("🚀 ~ POST ~ chainId:", chainId);
 
@@ -53,13 +53,15 @@ export async function POST(req: Request) {
   const poolService = new PoolService(null, creatorPrivateKey, chainId);
 
   const creatorFeeWei = creatorFee * 10 ** 16;
+  const buyPriceWei = buyPrice * 10 ** 18;
+  const sellPriceWei = sellPrice * 10 ** 18;
+  const buyPriceWithfee = buyPriceWei + buyPriceWei * (0.001 / 100);
   const transaction = await poolService.createPool({
     nftCollectionAddress,
     creatorFee: creatorFeeWei.toString(),
     name: "PLS-POOL",
     symbol: "PLS-POOL",
   });
-  console.log("🚀 ~ POST ~ transaction:", transaction);
 
   const event = await getEventFromTransaction({
     txHash: transaction.hash,
@@ -68,7 +70,6 @@ export async function POST(req: Request) {
     chainId,
     provider: getProvider(chainId),
   });
-  console.log("🚀 ~ POST ~ event:", event);
 
   if (!event)
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
@@ -78,12 +79,38 @@ export async function POST(req: Request) {
     nftCollectionAddress,
     creatorFee: parseFloat(creatorFee),
     poolAddress: event.args.poolAddress as string,
-    poolType,
-    buyPrice: Number(ethers.parseEther(buyPrice.toString())),
+    buyPrice: Number(buyPriceWithfee),
     sellPrice: Number(ethers.parseEther(sellPrice.toString())),
-    totalContribution,
+    totalContribution: 0,
     creatorId: creator.id,
   });
+
+  const usepoolsSession = createSessionFromWallet(creator.walletAddress);
+
+  const usepoolsPool = await usePoolsClient.createPool(usepoolsSession, {
+    poolName: name,
+    escrowAddress: event.args.poolAddress as string,
+    poolDescription: "Pool description",
+    poolAddress: event.args.poolAddress as string,
+    poolPhilosophy: "Pool philosophy",
+    poolImage: "Pool image",
+    collectionName: "Collection name",
+    collectionSlug: collection_slug,
+    creator: creator.managedWallets[0].address,
+    creatorFee: creatorFeeWei.toString(),
+    collectionAddress: nftCollectionAddress,
+    targetType: "collection",
+    tokenId: "0",
+    buyPrice: buyPriceWithfee.toString(),
+    buyPriceWithFeeEthers: buyPriceWithfee.toString(),
+    sellPrice: sellPriceWei.toString(),
+    marketType: "opensea",
+    isERC721: true,
+    chainId,
+    deadline: "1000000000000000000",
+    contractVersion: "1.7",
+  });
+  console.log("🚀 ~ POST ~ usepoolsPool:", usepoolsPool);
 
   return NextResponse.json(pool);
 }

@@ -18,17 +18,17 @@ export const CHAIN_ID_TO_NAME = {
 };
 
 export const POOL_FACTORY_ADDRESS: Record<number, string> = {
-  [CHAIN_ID_CONFIG.shape]: "0x0000000000000000000000000000000000000000",
+  [CHAIN_ID_CONFIG.shape]: "0x7E579B34D024343FBD6eDF8266FF5fA38d082466",
   [CHAIN_ID_CONFIG.shapeSepolia]: "0x7b1B4090fb7bEa28B7E7B08AfE1572AE5CB35098",
 };
 
-export function getProvider(chainId: number = 11011): ethers.JsonRpcProvider {
+export function getProvider(chainId: number = 360): ethers.JsonRpcProvider {
   const rpcUrl = `${RPC_URL_CONFIG[chainId]}/${process.env.ALCHEMY_API_KEY}`;
   return new ethers.JsonRpcProvider(rpcUrl);
 }
 
 export function getSignerProvider(
-  chainId: number = 11011,
+  chainId: number = 360,
   privateKey: string
 ): ethers.Wallet {
   const rpcUrl = `${RPC_URL_CONFIG[chainId]}/${process.env.ALCHEMY_API_KEY}`;
