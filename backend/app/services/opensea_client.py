@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import aiohttp
+import logging
 from typing import Any, Dict, Optional
 
 from ..core.config import settings
+
+logger = logging.getLogger("scooby.opensea")
 
 
 class OpenSeaClient:
@@ -19,10 +22,14 @@ class OpenSeaClient:
 
     async def _get(self, path: str, params: Dict[str, Any] | None = None) -> Dict[str, Any]:
         url = f"{self.base_url}{path}"
+        logger.info("[OpenSea] GET %s | params: %r", url, params or {})
         async with aiohttp.ClientSession(headers=self._headers()) as session:
             async with session.get(url, params=params) as resp:
                 resp.raise_for_status()
-                return await resp.json()
+                data = await resp.json()
+                logger.info("[OpenSea] Response status: %d | data keys: %r", resp.status, list(data.keys()) if isinstance(data, dict) else "non-dict")
+                logger.info("[OpenSea] Response data: %r", data)
+                return data
 
     async def get_trending_collections(self, limit: int = 25, chain: str | None = None) -> Dict[str, Any]:
         # Use supported fields. For "trending" signal, one_day_change is available per docs.
@@ -99,5 +106,20 @@ class OpenSeaClient:
         if not slug:
             raise ValueError("Invalid collection slug")
         return await self._get(f"/collections/{slug}")
+
+    async def get_collection_stats(self, slug: str) -> Dict[str, Any]:
+        """Fetch statistics for a collection.
+
+        The v2 endpoint returns stats as part of the collection payload in many cases.
+        Prefer the `/collections/{slug}` endpoint and extract `stats`.
+        """
+        data = await self.get_collection(slug)
+        # Depending on the response shape, stats might be at top-level or nested
+        if isinstance(data, dict):
+            if isinstance(data.get("collection"), dict) and data["collection"].get("stats"):
+                return data["collection"]["stats"]
+            if data.get("stats"):
+                return data["stats"]
+        return {}
 
 

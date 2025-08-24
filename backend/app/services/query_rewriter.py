@@ -19,17 +19,14 @@ class QueryRewriter:
         "Your job is to rewrite user queries to be clear, complete, and contextual.\n\n"
         "Rules:\n"
         "1. Fix grammar and spelling errors\n"
-        "2. Add missing context from conversation history\n"
-        "3. Convert relative times to absolute ones when possible (e.g., 'last 24h' -> 'past 24 hours')\n"
-        "4. Preserve the user's original intent\n"
-        "5. Keep the rewritten query concise but complete\n"
-        "6. If the user asks for a pool, do not assume it's a liquidity pool and thus do not rewrite it. "
+        "2. Read at the previous user question and the previous assistant answer to understand the context and rewrite the query to be more complete and contextual.\n"
 
-
-        "Examples:\n"
+        "Examples of grammatical errors corrected:\n"
         "eg. hllo -> hello"
         "create a pool -> create a pool"
-        ""
+
+        "Examples of contextually complete queries:\n"
+        "what's the current floor price of the collection? -> what's the current floor price of the collection Pudgy Penguins?"
     )
 
     def __init__(self, api_key: str | None = None) -> None:

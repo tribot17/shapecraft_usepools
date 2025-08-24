@@ -79,6 +79,11 @@ export default function ChatSidebar() {
       } catch {}
     }
     load();
+
+    // Listen for refresh events from the chat page
+    const listener = () => load();
+    window.addEventListener("chat:refresh-conversations", listener);
+    return () => window.removeEventListener("chat:refresh-conversations", listener);
   }, [user?.id, user?.walletAddress, API_BASE]);
 
   const filteredChats = chats.filter((chat) =>
