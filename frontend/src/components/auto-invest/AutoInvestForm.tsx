@@ -6,7 +6,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useConditionalWallet } from "@/hooks/useConditionalWallet";
 import { useWeb3 } from "@/hooks/useWeb3";
-import { ManagedWallet } from "@prisma/client";
 import { useCallback, useEffect, useState } from "react";
 
 interface AutoInvestFormData {
@@ -37,7 +36,6 @@ export function AutoInvestForm({
 }: AutoInvestFormProps) {
   const { getBalance, chainId } = useWeb3();
   const { user } = useConditionalWallet();
-  const [wallets, setWallets] = useState<ManagedWallet>();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [balance, setBalance] = useState<number>(0);
@@ -76,9 +74,7 @@ export function AutoInvestForm({
     }
 
     if (!managedWallet) return;
-
-    setWallets(managedWallet);
-  }, [user?.id, formData.walletId]);
+  }, [user?.id, user?.managedWallets, getBalance, formData.walletId]);
 
   useEffect(() => {
     fetchWallets();

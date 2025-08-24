@@ -11,7 +11,29 @@ export default function ChatPage() {
   const chatId = searchParams.get("id");
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<
-    Array<{ role: "user" | "assistant"; content: string; data?: any }>
+    Array<{ 
+      role: "user" | "assistant"; 
+      content: string; 
+      data?: {
+        collections?: Array<{
+          name: string;
+          category: string;
+          chain: string;
+          opensea_url: string;
+        }>;
+        stats?: {
+          total?: {
+            floor_price?: number;
+            floor_price_symbol?: string;
+            num_owners?: number;
+            market_cap?: number;
+            volume?: number;
+          };
+        };
+        slug?: string;
+        opensea_url?: string;
+      };
+    }>
   >([]);
   const [userId, setUserId] = useState<string | null>(null);
   const { user } = useConditionalWallet();
@@ -89,7 +111,25 @@ export default function ChatPage() {
           const data = (await res.json()) as Array<{
             role: "user" | "assistant";
             content: string;
-            data?: any;
+            data?: {
+              collections?: Array<{
+                name: string;
+                category: string;
+                chain: string;
+                opensea_url: string;
+              }>;
+              stats?: {
+                total?: {
+                  floor_price?: number;
+                  floor_price_symbol?: string;
+                  num_owners?: number;
+                  market_cap?: number;
+                  volume?: number;
+                };
+              };
+              slug?: string;
+              opensea_url?: string;
+            };
           }>;
           setMessages(data);
         }
@@ -157,7 +197,28 @@ export default function ChatPage() {
     }
     // After first send, refresh conversations list
     refreshConversations();
-    return (await res.json()) as { reply: string; data?: unknown };
+    return (await res.json()) as { 
+      reply: string; 
+      data?: {
+        collections?: Array<{
+          name: string;
+          category: string;
+          chain: string;
+          opensea_url: string;
+        }>;
+        stats?: {
+          total?: {
+            floor_price?: number;
+            floor_price_symbol?: string;
+            num_owners?: number;
+            market_cap?: number;
+            volume?: number;
+          };
+        };
+        slug?: string;
+        opensea_url?: string;
+      };
+    };
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -324,9 +385,16 @@ export default function ChatPage() {
                       <div>{m.content}</div>
                       {m.role === "assistant" && m.data?.collections && (
                         <div className="mt-3 space-y-2">
-                          {m.data.collections
-                            .slice(0, 10)
-                            .map((collection: any, colIdx: number) => (
+                          {m.data.collections.slice(0, 10).map(
+                            (
+                              collection: {
+                                name: string;
+                                category: string;
+                                chain: string;
+                                opensea_url: string;
+                              },
+                              colIdx: number
+                            ) => (
                               <div
                                 key={colIdx}
                                 className="bg-white/5 rounded-lg p-3 border border-white/10"
@@ -352,7 +420,8 @@ export default function ChatPage() {
                                   )}
                                 </div>
                               </div>
-                            ))}
+                            )
+                          )}
                           {m.data.collections.length > 10 && (
                             <p className="text-xs text-white/50 text-center">
                               Showing 10 of {m.data.collections.length}{" "}
@@ -365,11 +434,13 @@ export default function ChatPage() {
                         <div className="mt-3">
                           <div className="bg-white/5 rounded-lg p-3 border border-white/10">
                             <div className="flex items-center justify-between mb-2">
-                              <h4 className="font-medium text-white">{m.data.slug}</h4>
+                              <h4 className="font-medium text-white">
+                                {m.data.slug}
+                              </h4>
                               {m.data.opensea_url && (
-                                <a 
-                                  href={m.data.opensea_url} 
-                                  target="_blank" 
+                                <a
+                                  href={m.data.opensea_url}
+                                  target="_blank"
                                   rel="noopener noreferrer"
                                   className="text-blue-400 hover:text-blue-300 text-xs underline"
                                 >
@@ -380,22 +451,42 @@ export default function ChatPage() {
                             {m.data.stats.total && (
                               <div className="grid grid-cols-2 gap-2 text-xs">
                                 <div>
-                                  <span className="text-white/70">Floor Price:</span>
+                                  <span className="text-white/70">
+                                    Floor Price:
+                                  </span>
                                   <span className="text-white ml-1">
-                                    {m.data.stats.total.floor_price ? `${m.data.stats.total.floor_price} ${m.data.stats.total.floor_price_symbol || 'ETH'}` : 'N/A'}
+                                    {m.data.stats.total.floor_price
+                                      ? `${m.data.stats.total.floor_price} ${
+                                          m.data.stats.total
+                                            .floor_price_symbol || "ETH"
+                                        }`
+                                      : "N/A"}
                                   </span>
                                 </div>
                                 <div>
                                   <span className="text-white/70">Owners:</span>
-                                  <span className="text-white ml-1">{m.data.stats.total.num_owners?.toLocaleString() || 'N/A'}</span>
+                                  <span className="text-white ml-1">
+                                    {m.data.stats.total.num_owners?.toLocaleString() ||
+                                      "N/A"}
+                                  </span>
                                 </div>
                                 <div>
-                                  <span className="text-white/70">Market Cap:</span>
-                                  <span className="text-white ml-1">{m.data.stats.total.market_cap?.toLocaleString() || 'N/A'}</span>
+                                  <span className="text-white/70">
+                                    Market Cap:
+                                  </span>
+                                  <span className="text-white ml-1">
+                                    {m.data.stats.total.market_cap?.toLocaleString() ||
+                                      "N/A"}
+                                  </span>
                                 </div>
                                 <div>
-                                  <span className="text-white/70">Total Volume:</span>
-                                  <span className="text-white ml-1">{m.data.stats.total.volume?.toLocaleString() || 'N/A'}</span>
+                                  <span className="text-white/70">
+                                    Total Volume:
+                                  </span>
+                                  <span className="text-white ml-1">
+                                    {m.data.stats.total.volume?.toLocaleString() ||
+                                      "N/A"}
+                                  </span>
                                 </div>
                               </div>
                             )}

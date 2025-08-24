@@ -48,24 +48,22 @@ export async function POST(request: Request) {
     }
 
     const body: JoinPoolRequest = await request.json();
-    const { poolId, amount, slippage, deadline } = body;
+    const { poolId, amountInWEI, transactionHash } = body;
 
-    if (!poolId || !amount) {
+    if (!poolId || !amountInWEI || !transactionHash) {
       return NextResponse.json(
         { error: "Missing poolId or amount" },
         { status: 400 }
       );
     }
 
-    // Effectuer une action sur un pool via le service UsePools
     const result = await usePoolsClient.post<JoinPoolResponse>(
       "/api/pools/join",
       session,
       {
         poolId,
-        amount,
-        slippage,
-        deadline,
+        amountInWEI,
+        transactionHash,
       }
     );
 

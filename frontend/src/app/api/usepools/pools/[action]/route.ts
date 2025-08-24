@@ -30,9 +30,16 @@ export async function POST(request: Request, { params }: RouteParams) {
     if (action === "join") {
       const joinData: JoinPoolRequest = await request.json();
 
-      if (!joinData.poolId || !joinData.amount) {
+      if (
+        !joinData.poolId ||
+        !joinData.amountInWEI ||
+        !joinData.transactionHash
+      ) {
         return NextResponse.json(
-          { error: "Missing required fields: poolId, amount" },
+          {
+            error:
+              "Missing required fields: poolId, amountInWEI, transactionHash",
+          },
           { status: 400 }
         );
       }
