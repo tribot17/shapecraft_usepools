@@ -6,7 +6,7 @@ import { OpenSeaClient } from "@/services/opensea/client";
 import { PoolService } from "@/services/Pool";
 import { createSessionFromWallet, usePoolsClient } from "@/services/usepools";
 import { ethers } from "ethers";
-import { createPool } from "models/Pool";
+import { addUsePoolsId, createPool } from "models/Pool";
 import { getUserByWalletAddress } from "models/Users";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
@@ -111,7 +111,8 @@ export async function POST(req: Request) {
     deadline: "1000000000000000000",
     contractVersion: "1.7",
   });
-  console.log("🚀 ~ POST ~ usepoolsPool:", usepoolsPool);
+
+  await addUsePoolsId(pool.id, usepoolsPool.pool.id);
 
   return NextResponse.json(pool);
 }

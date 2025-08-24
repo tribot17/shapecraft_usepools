@@ -199,7 +199,7 @@ export function AutoInvestForm({
           <Input
             id="investmentAmount"
             type="number"
-            step="0.001"
+            step="0.00000005"
             min="0"
             value={formData.investmentAmount}
             onChange={(e) =>

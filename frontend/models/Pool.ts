@@ -26,6 +26,7 @@ export async function createPool({
   return await prisma.pool.create({
     data: {
       name,
+      chainId: 11011, // SIMULATE TESTNET
       nftCollection: nftCollectionAddress,
       poolAddress,
       poolType: PoolType.COLLECTION,
@@ -60,5 +61,14 @@ export async function getPoolsByUserId(userId: string) {
 export async function getPoolByAddress(poolAddress: string) {
   return await prisma.pool.findFirst({
     where: { poolAddress },
+  });
+}
+
+export async function addUsePoolsId(poolId: string, usepoolsId: string) {
+  return await prisma.pool.update({
+    where: { id: poolId },
+    data: {
+      usepools_id: usepoolsId,
+    },
   });
 }

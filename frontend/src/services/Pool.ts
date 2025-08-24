@@ -41,39 +41,12 @@ export class PoolService {
     name: string;
     symbol: string;
   }) {
-    const gasPrice = await this.provider.getFeeData();
-
-    const estimatedGas = await this.poolFactory.createPool.estimateGas(
-      nftCollectionAddress,
-      creatorFee,
-      name,
-      symbol,
-      false
-    );
-    console.log("🚀 ~ PoolService ~ createPool ~ estimatedGas:", estimatedGas);
-
-    // Use EIP-1559 transaction parameters (don't use gasPrice with EIP-1559)
-    const txOptions: {
-      gasLimit: bigint;
-      maxFeePerGas?: bigint | null;
-      maxPriorityFeePerGas?: bigint | null;
-      gasPrice?: bigint | null;
-    } = {
-      gasLimit: estimatedGas,
-    };
-
-    if (gasPrice.gasPrice)
-      txOptions.gasPrice = gasPrice.gasPrice + BigInt(1000);
-
-    console.log("🚀 ~ PoolService ~ createPool ~ txOptions:", txOptions);
-
     const tx = await this.poolFactory.createPool(
       nftCollectionAddress,
       creatorFee,
       name,
       symbol,
-      false,
-      txOptions
+      false
     );
 
     console.log("tx ended", tx);

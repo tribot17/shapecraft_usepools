@@ -6,6 +6,12 @@
  */
 
 import { usePoolsAuth } from "./auth";
+import {
+  ExitPoolRequest,
+  ExitPoolResponse,
+  JoinPoolRequest,
+  JoinPoolResponse,
+} from "./types";
 
 interface UserSession {
   user: {
@@ -159,24 +165,16 @@ export class UsePoolsClient {
 
   async joinPool(
     session: UserSession,
-    joinData: import("./types").JoinPoolRequest
-  ): Promise<import("./types").JoinPoolResponse> {
-    return this.post<import("./types").JoinPoolResponse>(
-      "/api/pools/join",
-      session,
-      joinData
-    );
+    joinData: JoinPoolRequest
+  ): Promise<JoinPoolResponse> {
+    return this.post<JoinPoolResponse>("/api/pool/join", session, joinData);
   }
 
   async exitPool(
     session: UserSession,
-    exitData: import("./types").ExitPoolRequest
-  ): Promise<import("./types").ExitPoolResponse> {
-    return this.post<import("./types").ExitPoolResponse>(
-      "/api/pools/exit",
-      session,
-      exitData
-    );
+    exitData: ExitPoolRequest
+  ): Promise<ExitPoolResponse> {
+    return this.post<ExitPoolResponse>("/api/pools/exit", session, exitData);
   }
 
   async getUserPositions(

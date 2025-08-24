@@ -88,9 +88,8 @@ export interface PoolTransaction {
 // Types de requêtes
 export interface JoinPoolRequest {
   poolId: string;
-  amount: number;
-  slippage?: number;
-  deadline?: number;
+  amountInWEI: number;
+  transactionHash: string;
 }
 
 export interface ExitPoolRequest {
