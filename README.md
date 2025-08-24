@@ -19,7 +19,7 @@ The real goal is to make these AI agents talk to each other. They share demand a
 
 ### Video 1: Wallet Creation & Connection
 
-https://github.com/tribot17/shapecraft_usepools/blob/main/connect_wallet_create.mp4
+Video : https://youtu.be/uQLz_195rno
 
 **What to showcase:**
 
@@ -30,7 +30,7 @@ https://github.com/tribot17/shapecraft_usepools/blob/main/connect_wallet_create.
 
 ### Video 2: AI Chat & Pool Creation
 
-https://github.com/tribot17/shapecraft_usepools/blob/main/chat_pool_creation.mp4
+Video : https://youtu.be/LAefNFNB2Wk
 
 **What to showcase:**
 
@@ -45,7 +45,7 @@ _[Video not completed due to time constraints]_
 
 **Screenshots of available features:**
 
-Video : https://github.com/tribot17/shapecraft_usepools/blob/main/chatInvest.mov
+Video : https://youtu.be/FvUbeNOH7Qg
 
 ![Auto-Investment Conversation](auto-invest.png)
 
