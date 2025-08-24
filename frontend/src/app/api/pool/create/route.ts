@@ -113,6 +113,7 @@ export async function POST(req: Request) {
     deadline: "1000000000000000000",
     contractVersion: "1.7",
   });
+  console.log("🚀 ~ POST ~ usepoolsPool:", usepoolsPool);
 
   await addUsePoolsId(pool.id, usepoolsPool.pool.id);
 
