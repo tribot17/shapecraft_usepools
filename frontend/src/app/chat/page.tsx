@@ -11,9 +11,10 @@ export default function ChatPage() {
   const searchParams = useSearchParams();
   const chatId = searchParams.get("id");
   const [message, setMessage] = useState("");
-  const [messages, setMessages] = useState<Array<{ role: "user" | "assistant"; content: string }>>([]);
+  const [messages, setMessages] = useState<Array<{ role: "user" | "assistant"; content: string; data?: any }>>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const { user } = useConditionalWallet();
+  const [isLoading, setIsLoading] = useState(false);
 
   const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
 
@@ -51,11 +52,38 @@ export default function ChatPage() {
     } catch {}
   }, []);
 
-  // When chatId changes, reset message list (start fresh conversation)
+  // Load history when chatId changes
   useEffect(() => {
     setMessages([]);
     setMessage("");
-  }, [chatId]);
+
+    async function loadHistory() {
+      if (!chatId) return;
+      setIsLoading(true);
+      try {
+        const walletAddress = user?.walletAddress || undefined;
+        const params = new URLSearchParams({ conversation_id: chatId });
+        if (userId) params.set("user_id", userId);
+        if (walletAddress) params.set("wallet_address", walletAddress);
+        const res = await fetch(`${API_BASE}/chat/messages?${params.toString()}`);
+        if (res.ok) {
+          const data = (await res.json()) as Array<{ role: "user" | "assistant"; content: string; data?: any }>;
+          setMessages(data);
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadHistory();
+  }, [chatId, user?.walletAddress, userId, API_BASE]);
+
+  async function refreshConversations() {
+    try {
+      // Trigger sidebar reload by dispatching a custom event it listens to
+      window.dispatchEvent(new CustomEvent("chat:refresh-conversations"));
+    } catch {}
+  }
 
   async function sendToBackend(userText: string) {
     return sendToBackendWithChatId(userText, chatId);
@@ -94,6 +122,8 @@ export default function ChatPage() {
     if (!res.ok) {
       throw new Error(`Backend error ${res.status}`);
     }
+    // After first send, refresh conversations list
+    refreshConversations();
     return (await res.json()) as { reply: string; data?: unknown };
   }
 
@@ -119,13 +149,12 @@ export default function ChatPage() {
       
       // Send message to backend with new chat ID
       try {
-        // Temporarily update the global chatId for the backend call
         const resp = await sendToBackendWithChatId(userText, newChatId);
         setMessages(prev => {
           const copy = [...prev];
           for (let i = copy.length - 1; i >= 0; i--) {
             if (copy[i].role === "assistant" && thinkingPhrases.includes(copy[i].content)) {
-              copy[i] = { role: "assistant", content: resp.reply };
+              copy[i] = { role: "assistant", content: resp.reply, data: resp.data };
               break;
             }
           }
@@ -149,7 +178,14 @@ export default function ChatPage() {
   return (
     <div className="flex min-h-screen bg-[#141414]">
       <ChatSidebar />
-      <main className="flex-1 ml-[360px]">
+      <main className="flex-1 ml-[360px] relative">
+        {isLoading && (
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="bg-[#1c1c1c] border border-white/10 rounded-lg px-4 py-3 text-white text-sm">
+              Loading...
+            </div>
+          </div>
+        )}
         {!chatId ? (
           <div className="flex flex-col items-center justify-center h-screen max-w-3xl mx-auto px-4">
             <h1 className="text-2xl font-medium text-white mb-8">What are you interested in today?</h1>
@@ -200,7 +236,38 @@ export default function ChatPage() {
               <div className="max-w-3xl mx-auto space-y-4">
                 {messages.map((m, idx) => (
                   <div key={idx} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-                    <div className={`${m.role === "user" ? "bg-blue-600 text-white" : "bg-white/10 text-white"} px-3 py-2 rounded-lg text-sm max-w-[80%]`}>{m.content}</div>
+                    <div className={`${m.role === "user" ? "bg-blue-600 text-white" : "bg-white/10 text-white"} px-3 py-2 rounded-lg text-sm max-w-[80%]`}>
+                      <div>{m.content}</div>
+                      {m.role === "assistant" && m.data?.collections && (
+                        <div className="mt-3 space-y-2">
+                          {m.data.collections.slice(0, 10).map((collection: any, colIdx: number) => (
+                            <div key={colIdx} className="bg-white/5 rounded-lg p-3 border border-white/10">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <h4 className="font-medium text-white">{collection.name}</h4>
+                                  <p className="text-xs text-white/70">{collection.category} • {collection.chain}</p>
+                                </div>
+                                {collection.opensea_url && (
+                                  <a 
+                                    href={collection.opensea_url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-blue-400 hover:text-blue-300 text-xs underline"
+                                  >
+                                    View
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                          {m.data.collections.length > 10 && (
+                            <p className="text-xs text-white/50 text-center">
+                              Showing 10 of {m.data.collections.length} collections
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -226,7 +293,7 @@ export default function ChatPage() {
                           const copy = [...prev];
                           for (let i = copy.length - 1; i >= 0; i--) {
                             if (copy[i].role === "assistant" && thinkingPhrases.includes(copy[i].content)) {
-                              copy[i] = { role: "assistant", content: resp.reply };
+                              copy[i] = { role: "assistant", content: resp.reply, data: resp.data };
                               break;
                             }
                           }
