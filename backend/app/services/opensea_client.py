@@ -108,18 +108,13 @@ class OpenSeaClient:
         return await self._get(f"/collections/{slug}")
 
     async def get_collection_stats(self, slug: str) -> Dict[str, Any]:
-        """Fetch statistics for a collection.
+        """Fetch detailed statistics for a collection using the dedicated stats endpoint.
 
-        The v2 endpoint returns stats as part of the collection payload in many cases.
-        Prefer the `/collections/{slug}` endpoint and extract `stats`.
+        Uses the v2 API endpoint: GET /collections/{collection_slug}/stats
         """
-        data = await self.get_collection(slug)
-        # Depending on the response shape, stats might be at top-level or nested
-        if isinstance(data, dict):
-            if isinstance(data.get("collection"), dict) and data["collection"].get("stats"):
-                return data["collection"]["stats"]
-            if data.get("stats"):
-                return data["stats"]
-        return {}
+        slug = slug.strip().split("/")[-1]
+        if not slug:
+            raise ValueError("Invalid collection slug")
+        return await self._get(f"/collections/{slug}/stats")
 
 

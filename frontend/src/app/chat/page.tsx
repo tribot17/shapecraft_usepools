@@ -361,6 +361,47 @@ export default function ChatPage() {
                           )}
                         </div>
                       )}
+                      {m.role === "assistant" && m.data?.stats && (
+                        <div className="mt-3">
+                          <div className="bg-white/5 rounded-lg p-3 border border-white/10">
+                            <div className="flex items-center justify-between mb-2">
+                              <h4 className="font-medium text-white">{m.data.slug}</h4>
+                              {m.data.opensea_url && (
+                                <a 
+                                  href={m.data.opensea_url} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-blue-400 hover:text-blue-300 text-xs underline"
+                                >
+                                  View on OpenSea
+                                </a>
+                              )}
+                            </div>
+                            {m.data.stats.total && (
+                              <div className="grid grid-cols-2 gap-2 text-xs">
+                                <div>
+                                  <span className="text-white/70">Floor Price:</span>
+                                  <span className="text-white ml-1">
+                                    {m.data.stats.total.floor_price ? `${m.data.stats.total.floor_price} ${m.data.stats.total.floor_price_symbol || 'ETH'}` : 'N/A'}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-white/70">Owners:</span>
+                                  <span className="text-white ml-1">{m.data.stats.total.num_owners?.toLocaleString() || 'N/A'}</span>
+                                </div>
+                                <div>
+                                  <span className="text-white/70">Market Cap:</span>
+                                  <span className="text-white ml-1">{m.data.stats.total.market_cap?.toLocaleString() || 'N/A'}</span>
+                                </div>
+                                <div>
+                                  <span className="text-white/70">Total Volume:</span>
+                                  <span className="text-white ml-1">{m.data.stats.total.volume?.toLocaleString() || 'N/A'}</span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
