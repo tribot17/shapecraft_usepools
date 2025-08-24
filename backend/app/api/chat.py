@@ -26,7 +26,7 @@ logger = logging.getLogger("scooby.chat")
 
 
 class ChatRequest(BaseModel):
-    intent: Optional[Literal["small_talk", "opensea_trending", "opensea_volume", "opensea_collections", "nft_statistics", "create_pool"]] = None
+    intent: Optional[Literal["small_talk", "opensea_trending", "opensea_volume", "opensea_collections", "nft_statistics", "create_pool", "retrieve_pools", "pool_invest"]] = None
     message: str = Field(..., description="User message")
     params: Optional[Dict[str, Any]] = None
     conversation_id: Optional[str] = Field(default=None, description="Client-side chat id")
@@ -65,6 +65,8 @@ async def handle_message(req: ChatRequest, db: Session = Depends(get_db)) -> Cha
     # Check if we're already in a specific flow by looking at recent conversation history
     in_create_pool_flow = False
     in_nft_statistics_flow = False
+    in_pool_invest_flow = False
+    in_retrieve_pools_flow = False
     last_intent = None
     
     if req.conversation_id:
@@ -105,18 +107,30 @@ async def handle_message(req: ChatRequest, db: Session = Depends(get_db)) -> Cha
                 explicit_create_pool = any(phrase in user_msg_lower for phrase in [
                     "create a pool", "create pool", "make a pool", "new pool", "start pool creation"
                 ])
+                explicit_pool_invest = (("invest" in user_msg_lower or "deposit" in user_msg_lower or "fund" in user_msg_lower) and "pool" in user_msg_lower)
                 explicit_nft_stats = any(phrase in user_msg_lower for phrase in [
                     "floor price", "statistics", "stats", "market cap", "volume", "price data"
                 ])
                 
                 # If user explicitly requests different intent, allow intent switching
-                if explicit_create_pool and last_intent != "create_pool":
+                if explicit_pool_invest:
+                    logger.info("[Chat] User explicitly requested pool_invest, switching from %r", last_intent)
+                    in_pool_invest_flow = True
+                    in_create_pool_flow = False
+                    in_nft_statistics_flow = False
+                elif explicit_create_pool and last_intent != "create_pool":
                     logger.info("[Chat] User explicitly requested create_pool, switching from %r", last_intent)
                     # Don't force flow continuation, let classifier decide
                 elif explicit_nft_stats and last_intent != "nft_statistics":
                     logger.info("[Chat] User explicitly requested nft_statistics, switching from %r", last_intent)
                     # Don't force flow continuation, let classifier decide
                 # Primary check: use last intent if available and no explicit switch
+                elif last_intent == "retrieve_pools" and not explicit_pool_invest and not explicit_create_pool:
+                    # When last intent is retrieve_pools, we stay in that flow and do NOT
+                    # fall into create_pool unless the user explicitly asks to create a pool.
+                    in_retrieve_pools_flow = True
+                elif last_intent == "pool_invest" and not explicit_create_pool and not explicit_nft_stats:
+                    in_pool_invest_flow = True
                 elif last_intent == "create_pool" and not explicit_nft_stats:
                     in_create_pool_flow = True
                 elif last_intent == "nft_statistics" and not explicit_create_pool:
@@ -128,7 +142,13 @@ async def handle_message(req: ChatRequest, db: Session = Depends(get_db)) -> Cha
                     in_nft_statistics_flow = True
 
     # Classify intent - stay in flow unless user cancels
-    if in_create_pool_flow and not any(w in req.message.lower() for w in ["cancel", "stop", "abort"]):
+    if in_pool_invest_flow and not any(w in req.message.lower() for w in ["cancel", "stop", "abort"]):
+        intent = "pool_invest"
+        logger.info("[Chat] Staying in pool_invest flow (last intent: %r)", last_intent)
+    elif in_retrieve_pools_flow and not any(w in req.message.lower() for w in ["cancel", "stop", "abort"]):
+        intent = "retrieve_pools"
+        logger.info("[Chat] Staying in retrieve_pools flow (last intent: %r)", last_intent)
+    elif in_create_pool_flow and not any(w in req.message.lower() for w in ["cancel", "stop", "abort"]):
         intent = "create_pool"
         logger.info("[Chat] Staying in create_pool flow (last intent: %r)", last_intent)
     elif in_nft_statistics_flow and not any(w in req.message.lower() for w in ["cancel", "stop", "abort"]):
@@ -231,12 +251,10 @@ async def handle_message(req: ChatRequest, db: Session = Depends(get_db)) -> Cha
                     pool_name = conversation_turns[i + 1][0].strip()
                 elif req.message.strip():  # Current message is the answer
                     pool_name = req.message.strip()
-            elif "opensea collection link" in assistant_lower and not opensea_link:
-                # The next user message (if exists) should be the opensea link
-                if i + 1 < len(conversation_turns):
-                    opensea_link = extract(r"https?://opensea\.io/collection/([a-z0-9\-]+)", conversation_turns[i + 1][0])
-                elif req.message.strip():  # Current message is the answer
-                    opensea_link = extract(r"https?://opensea\.io/collection/([a-z0-9\-]+)", req.message)
+            # Always ask for the OpenSea link during this flow, do not reuse
+            # a previously provided link unless it was explicitly the answer
+            # to the most recent "Provide the OpenSea collection link" prompt.
+            # So we intentionally skip reconstructing from earlier turns here.
             elif "creator fee" in assistant_lower and not creator_fee:
                 if i + 1 < len(conversation_turns):
                     creator_fee = parse_number(conversation_turns[i + 1][0])
@@ -263,8 +281,9 @@ async def handle_message(req: ChatRequest, db: Session = Depends(get_db)) -> Cha
                 sell_price = parse_number(last_user_text)
             if "what name do we give to the pool" in last_assistant and not pool_name:
                 pool_name = last_user_text.strip()
-            if "opensea collection link" in last_assistant and not opensea_link:
-                opensea_link = extract(r"https?://opensea\.io/collection/([a-z0-9\-]+)", last_user_text)
+            # Do not backfill OpenSea link from earlier context to avoid
+            # accidentally using a stale collection. It must be answered
+            # right after we ask for it.
 
         # If user answered with just a number to the current prompt, capture it
         if not creator_fee and last_assistant and "creator fee" in last_assistant:
@@ -442,6 +461,116 @@ async def handle_message(req: ChatRequest, db: Session = Depends(get_db)) -> Cha
         _persist(db, req, rewritten, intent, reply_text, raw_data, effective_user_id=effective_user_id)
         return ChatResponse(reply=reply_text)
 
+    if intent == "retrieve_pools":
+        # Try to get a collection address directly from params
+        params = req.params or {}
+        address: str | None = params.get("address") if isinstance(params.get("address"), str) else None
+
+        # If no address provided, ask user for OpenSea link and resolve slug → address
+        if not address:
+            # Check if the current message contains an OpenSea link; if not, prompt the user
+            import re
+            m = re.search(r"https?://opensea\.io/collection/([a-z0-9\-]+)", req.message, flags=re.I)
+            if not m:
+                reply_text = "Please share the OpenSea collection link so I can look up its pools."
+                _persist(db, req, rewritten, intent, reply_text, effective_user_id=effective_user_id)
+                return ChatResponse(reply=reply_text)
+
+            slug = m.group(1)
+            client = OpenSeaClient()
+            coll = await client.get_collection(slug)
+            # Extract contract address from the collection response
+            nft_address = ""
+            try:
+                contracts = coll.get("contracts") or (
+                    coll.get("collection", {}).get("contracts") if isinstance(coll.get("collection"), dict) else []
+                )
+                if isinstance(contracts, list) and contracts:
+                    for c in contracts:
+                        if isinstance(c, dict) and c.get("address"):
+                            nft_address = c.get("address")
+                            break
+            except Exception:
+                nft_address = ""
+
+            if not nft_address:
+                reply_text = "I couldn't resolve the collection address from that link. Please try another link."
+                _persist(db, req, rewritten, intent, reply_text, data=coll, effective_user_id=effective_user_id)
+                return ChatResponse(reply=reply_text)
+            address = nft_address
+
+        # Call FE route to fetch pools for the collection address
+        fe_base = os.getenv("FE_BASE_URL", "http://localhost:3002")
+        url = f"{fe_base}/api/pools/collection/{address}"
+        pools_data: dict | None = None
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url) as resp:
+                    if resp.status == 200:
+                        pools_data = await resp.json()
+                    else:
+                        txt = await resp.text()
+                        reply_text = f"I couldn't fetch pools for that collection (status {resp.status})."
+                        _persist(db, req, rewritten, intent, reply_text, data={"response": txt}, effective_user_id=effective_user_id)
+                        return ChatResponse(reply=reply_text)
+        except Exception as e:  # noqa: BLE001
+            reply_text = f"Error calling pools API: {e}"
+            _persist(db, req, rewritten, intent, reply_text, effective_user_id=effective_user_id)
+            return ChatResponse(reply=reply_text)
+
+        # Build a rich markdown reply with requested fields
+        total = pools_data.get("totalPools") if isinstance(pools_data, dict) else None
+        collection_addr = pools_data.get("collectionAddress", address) if isinstance(pools_data, dict) else address
+        
+        if total == 0:
+            reply_text = f"## 🔍 No Pools Found\n\nNo pools are currently available for collection `{collection_addr}`.\n\n💡 *Want to be the first? You can create a new pool for this collection!*"
+        else:
+            reply_lines = [
+                f"## 🏊‍♂️ Available Pools ({total} found)",
+                f"*Collection: `{collection_addr}`*\n"
+            ]
+            
+            try:
+                items = (pools_data or {}).get("pools", [])
+                for i, p in enumerate(items[:5], 1):  # Show max 5 pools
+                    name = p.get("name") or "Unnamed Pool"
+                    pool_id = p.get("id", "N/A")
+                    buy_price = p.get("buyPriceETH", "0.000000")
+                    sell_price = p.get("sellPriceETH", "0.000000") 
+                    participants = (p.get("stats") or {}).get("totalParticipants", 0)
+                    contribution = p.get("totalContribution", 0.0)
+                    creator_name = (p.get("creator") or {}).get("name") or "Anonymous"
+                    status = p.get("status", "UNKNOWN").title()
+                    
+                    # Format contribution with proper units
+                    contrib_str = f"{contribution:.2f} ETH" if contribution > 0 else "No contributions yet"
+                    
+                    # Status emoji
+                    status_emoji = {"Funding": "🟡", "Active": "🟢", "Closed": "🔴"}.get(status, "⚪")
+                    
+                    reply_lines.extend([
+                        f"### {i}. **{name}** {status_emoji}",
+                        f"📊 **Buy:** {buy_price} ETH • **Sell:** {sell_price} ETH",
+                        f"👥 **{participants} participants** • 💰 **{contrib_str}**",
+                        f"🏗️ *Created by {creator_name}* • ID: `{pool_id}`",
+                        ""  # Empty line for spacing
+                    ])
+                
+                if total > 5:
+                    reply_lines.append(f"*...and {total - 5} more pools available*")
+                    
+            except Exception as e:
+                reply_lines.append(f"*Error formatting pool data: {e}*")
+            
+            reply_lines.extend([
+                "",
+                "🎯 **Ready to invest?** Choose a pool and start participating!"
+            ])
+            
+            reply_text = "\n".join(reply_lines)
+        _persist(db, req, rewritten, intent, reply_text, data=pools_data, effective_user_id=effective_user_id)
+        return ChatResponse(reply=reply_text, data=pools_data)
+
     if intent == "nft_statistics":
         # Check for cancellation
         if any(w in req.message.lower() for w in ["cancel", "stop", "abort"]):
@@ -520,6 +649,101 @@ async def handle_message(req: ChatRequest, db: Session = Depends(get_db)) -> Cha
             logger.error("[Chat] Error fetching stats for %s: %s", slug, e)
             reply_text = f"Sorry, I couldn't fetch statistics for {slug}. The collection might not exist or there could be an API issue."
             _persist(db, req, rewritten, intent, reply_text, effective_user_id=effective_user_id)
+            return ChatResponse(reply=reply_text)
+
+    # Handle pool investment flow
+    if intent == "pool_invest":
+        import re
+        last_assistant = None
+        history_pairs: list[str] = []
+        if req.conversation_id:
+            history_msgs = db.execute(
+                text("SELECT user_question, ai_answer FROM conversation_messages WHERE conversation_id = :c ORDER BY created_at ASC"),
+                {"c": req.conversation_id}
+            ).fetchall()
+            for m in history_msgs:
+                if m[0] and m[1]:
+                    history_pairs.append(f"User: {m[0]}\nAssistant: {m[1]}")
+            if history_pairs:
+                last_pair = history_pairs[-1]
+                if "Assistant:" in last_pair:
+                    last_assistant = last_pair.split("Assistant:", 1)[1].strip().lower()
+
+        def extract_pool_id(message: str) -> str | None:
+            # Accept explicit patterns like "pool id: <id>" and bare IDs
+            m = re.search(r"pool[_\- ]?id[:\s]*([a-zA-Z0-9_\-]+)", message, flags=re.I)
+            if m:
+                return m.group(1)
+            # If the whole message looks like an id, use it directly
+            bare = message.strip()
+            if re.match(r"^[a-zA-Z0-9_\-]{8,}$", bare):
+                return bare
+            return None
+
+        def extract_amount(message: str) -> float | None:
+            m = re.search(r"([0-9]+(?:[\.,][0-9]+)?)", message)
+            if not m:
+                return None
+            return float(m.group(1).replace(",", "."))
+
+        pool_id = None
+        amount = None
+        if last_assistant and ("how much" in last_assistant or "amount" in last_assistant):
+            amount = extract_amount(req.message)
+        elif last_assistant and ("pool id" in last_assistant or "pool_id" in last_assistant or "which pool" in last_assistant):
+            pool_id = extract_pool_id(req.message) or req.message.strip()
+        else:
+            # Even if the last assistant didn't ask, try to capture a bare id
+            pool_id = extract_pool_id(req.message) or pool_id
+
+        # Walk through conversation turns to backfill values similar to create_pool flow
+        conversation_turns: list[tuple[str, str]] = []
+        for pair in history_pairs:
+            if "User:" in pair and "Assistant:" in pair:
+                parts = pair.split("User:", 1)[1]
+                if "Assistant:" in parts:
+                    user_msg = parts.split("Assistant:", 1)[0].strip()
+                    assistant_msg = parts.split("Assistant:", 1)[1].strip().lower()
+                    conversation_turns.append((user_msg, assistant_msg))
+
+        for i, (user_msg, assistant_msg) in enumerate(conversation_turns):
+            if ("pool id" in assistant_msg or "pool_id" in assistant_msg or "which pool" in assistant_msg) and not pool_id:
+                next_user = conversation_turns[i + 1][0] if i + 1 < len(conversation_turns) else req.message
+                pool_id = extract_pool_id(next_user) or pool_id
+            if ("how much" in assistant_msg or "amount" in assistant_msg) and amount is None:
+                next_user = conversation_turns[i + 1][0] if i + 1 < len(conversation_turns) else req.message
+                amount = extract_amount(next_user) if amount is None else amount
+
+        if not pool_id:
+            reply_text = "To invest, please provide the pool_id you want to invest in."
+            _persist(db, req, rewritten, intent, reply_text, effective_user_id=effective_user_id)
+            return ChatResponse(reply=reply_text)
+
+        if amount is None:
+            reply_text = "How much do you want to invest? Provide the amount in ETH (e.g., 0.25)."
+            _persist(db, req, rewritten, intent, reply_text, effective_user_id=effective_user_id)
+            return ChatResponse(reply=reply_text)
+
+        fe_base = os.getenv("FE_BASE_URL", "http://localhost:3002")
+        url = f"{fe_base}/api/pool/invest"
+        invest_payload = {"poolId": pool_id, "amount": amount, "wallet_address": req.wallet_address}
+        logger.info("[Chat] Invest payload: %s", invest_payload)
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(url, json=invest_payload) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        reply_text = "✅ Investment submitted successfully."
+                        _persist(db, req, rewritten, intent, reply_text, data=data, effective_user_id=effective_user_id)
+                        return ChatResponse(reply=reply_text, data=data)
+                    else:
+                        txt = await resp.text()
+                        reply_text = f"❌ Failed to invest (status {resp.status}). {txt}"
+                        _persist(db, req, rewritten, intent, reply_text, data=invest_payload, effective_user_id=effective_user_id)
+                        return ChatResponse(reply=reply_text)
+        except Exception as e:
+            reply_text = f"Error calling invest API: {e}"
+            _persist(db, req, rewritten, intent, reply_text, data=invest_payload, effective_user_id=effective_user_id)
             return ChatResponse(reply=reply_text)
 
     raise HTTPException(status_code=400, detail="Unsupported intent")

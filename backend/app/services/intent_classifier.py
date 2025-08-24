@@ -17,6 +17,8 @@ Intent = Literal[
     "opensea_collections",
     "create_pool",
     "nft_statistics",
+    "retrieve_pools",
+    "pool_invest",
 ]
 
 
@@ -41,10 +43,12 @@ class LLMIntentClassifier:
         system = (
             "You are an intent classifier for the Scooby NFT assistant. "
             "Respond with JSON ONLY, matching this schema: {\"intent\": <one-of>}. "
-            "Allowed values for intent: [small_talk, opensea_trending, opensea_volume, opensea_collections, create_pool, nft_statistics]. "
+            "Allowed values for intent: [small_talk, opensea_trending, opensea_volume, opensea_collections, create_pool, nft_statistics, retrieve_pools, pool_invest]. "
 
             "Rules:\n"
             "- Any request about creating a pool, starting a pool, or making a pool → intent = create_pool.\n"
+            "- Any request to get/list/check/show pools for a collection → intent = retrieve_pools.\n"
+            "- Any request to invest/deposit into a pool → intent = pool_invest.\n"
             "- Queries about trending collections (last ~24h) → opensea_trending.\n"
             "- Queries about collection volume over N days → opensea_volume.\n"
             "- Queries about sorting/filtering collections lists by metrics (market cap, num owners, floor change, etc.) → opensea_collections.\n"
@@ -55,6 +59,9 @@ class LLMIntentClassifier:
             "Can you create a pool? -> {\"intent\": \"create_pool\"}\n"
             "I want to create a pool -> {\"intent\": \"create_pool\"}\n"
             "Help me start a pool -> {\"intent\": \"create_pool\"}\n"
+            "get pools for pudgy penguins -> {\"intent\": \"retrieve_pools\"}\n"
+            "check pools of this collection -> {\"intent\": \"retrieve_pools\"}\n"
+            "invest in pool abc123 -> {\"intent\": \"pool_invest\"}\n"
             "What are NFTs? -> {\"intent\": \"small_talk\"}\n"
             "How can I better trade NFTs? -> {\"intent\": \"small_talk\"}\n"
             "What are the trending collections? -> {\"intent\": \"opensea_trending\"}\n"
@@ -71,9 +78,19 @@ class LLMIntentClassifier:
             f"Message: {text!r}"
         )
 
-        if "create" in text.lower() and "pool" in text.lower():
+        tlc = text.lower()
+        if "create" in tlc and "pool" in tlc:
             logging.info(f"Intent classifier heuristic: create_pool (matched 'create' + 'pool' in '{text}')")
             return "create_pool"
+        # Heuristic for retrieve_pools
+        verbs = ("get", "provide", "check", "show", "list", "find", "see", "view")
+        if any(v in tlc for v in verbs) and ("pools" in tlc or "pool list" in tlc):
+            logging.info(f"Intent classifier heuristic: retrieve_pools (matched verb+pools in '{text}')")
+            return "retrieve_pools"
+        # Heuristic for pool_invest
+        if "invest" in tlc and "pool" in tlc:
+            logging.info(f"Intent classifier heuristic: pool_invest (matched 'invest' + 'pool' in '{text}')")
+            return "pool_invest"
 
         try:
            
@@ -95,11 +112,16 @@ class LLMIntentClassifier:
         except (json.JSONDecodeError, ValidationError, Exception) as e:  # noqa: BLE001
             logging.warning(f"Intent clf fallback due to error: {e}")
             # Final fallback - check for create_pool again
-            if "create" in text.lower() and "pool" in text.lower():
+            if "create" in tlc and "pool" in tlc:
                 logging.info(f"Intent classifier error fallback: create_pool")
                 return "create_pool"
+            # Fallback for retrieve_pools
+            verbs = ("get", "provide", "check", "show", "list", "find", "see", "view")
+            if any(v in tlc for v in verbs) and ("pools" in tlc or "pool list" in tlc):
+                return "retrieve_pools"
+            if "invest" in tlc and "pool" in tlc:
+                return "pool_invest"
             # Heuristic for nft_statistics: mentions floor price/stats for a specific collection
-            tl = text.lower()
-            if ("floor" in tl and "price" in tl) or "nft stats" in tl or "statistics" in tl or "stats" in tl:
+            if ("floor" in tlc and "price" in tlc) or "nft stats" in tlc or "statistics" in tlc or "stats" in tlc:
                 return "nft_statistics"
             return "small_talk"
