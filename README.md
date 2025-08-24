@@ -1,5 +1,7 @@
 # 🌊 POOLS - AI-Powered NFT Fractional Ownership
 
+![POOLS Auto-Investment](auto-invest.png)
+
 ## 🎯 Our Mission
 
 At POOLS, our mission is to make NFTs accessible by letting people buy together through fractional ownership. But one challenge we kept facing is how much time it takes to gather interest from multiple users at the same time.
@@ -41,7 +43,10 @@ https://github.com/tribot17/shapecraft_usepools/blob/main/chat_pool_creation.mp4
 
 ### Video 3: Pool Management & Investment
 
-https://github.com/tribot17/shapecraft_usepools/blob/main/pool_management.mp4
+[![Description](auto-invest.png)](invest conversation)
+[![Description](invested.png)](invested proof)
+
+CF : auto-invest.png and invested.png
 
 **What to showcase:**
 
@@ -49,6 +54,14 @@ https://github.com/tribot17/shapecraft_usepools/blob/main/pool_management.mp4
 - Pool statistics and performance
 - Investment tracking
 - Fractional ownership tokens
+
+**Available Features (not shown in video):**
+
+- List of pools created by collection by asking list the pool
+- Indicate the opensea URL of the collection, for exemple https://opensea.io/collection/roses-are-dead
+- Automatic investment via the "invest" command
+- Pool management dashboard
+- Real-time investment tracking
 
 ## 🛠️ Technical Stack
 
