@@ -15,6 +15,7 @@ from ..services.intent_classifier import LLMIntentClassifier
 from ..services.query_rewriter import QueryRewriter
 from ..services.small_talk import SmallTalkResponder
 from ..services.stats_responder import StatsResponder
+from ..services.collections_responder import CollectionsResponder
 from ..core.database import get_db
 import aiohttp
 from ..models.models import ConversationMessage, User
@@ -25,7 +26,7 @@ logger = logging.getLogger("scooby.chat")
 
 
 class ChatRequest(BaseModel):
-    intent: Optional[Literal["small_talk", "opensea_trending", "opensea_volume", "opensea_collections", "nft_statistics"]] = None
+    intent: Optional[Literal["small_talk", "opensea_trending", "opensea_volume", "opensea_collections", "nft_statistics", "create_pool"]] = None
     message: str = Field(..., description="User message")
     params: Optional[Dict[str, Any]] = None
     conversation_id: Optional[str] = Field(default=None, description="Client-side chat id")
@@ -59,29 +60,80 @@ async def handle_message(req: ChatRequest, db: Session = Depends(get_db)) -> Cha
     # Rewrite user message with context
     rewriter = QueryRewriter()
     rewritten = await rewriter.rewrite(req.message, history_pairs)
-    rewritten = req.message
     logger.info("[Chat] Original: %r | Rewritten: %r", req.message, rewritten)
 
-    # Check if we're already in a create_pool flow by looking at recent conversation history
+    # Check if we're already in a specific flow by looking at recent conversation history
     in_create_pool_flow = False
-    if req.conversation_id and history_pairs:
-        # Check the last assistant message for create_pool keywords
-        last_pair = history_pairs[-1] if history_pairs else ""
-        if "Assistant:" in last_pair:
-            last_reply = last_pair.split("Assistant:", 1)[1].strip().lower()
-            create_pool_keywords = [
-                "what name do we give to the pool",
-                "opensea collection link",
-                "creator fee",
-                "buying price", "set a buying price",
-                "selling price", "set a selling price"
-            ]
-            in_create_pool_flow = any(keyword in last_reply for keyword in create_pool_keywords)
+    in_nft_statistics_flow = False
+    last_intent = None
+    
+    if req.conversation_id:
+        # Get the last intent from the database
+        if effective_user_id:
+            last_msg_query = text("""
+                SELECT intent FROM conversation_messages 
+                WHERE conversation_id = :conv_id AND user_id = :user_id 
+                AND intent IS NOT NULL
+                ORDER BY created_at DESC LIMIT 1
+            """)
+            result = db.execute(last_msg_query, {
+                "conv_id": req.conversation_id, 
+                "user_id": effective_user_id
+            }).fetchone()
+            if result:
+                last_intent = result[0]
+        
+        # Check assistant message keywords as backup
+        if history_pairs:
+            last_pair = history_pairs[-1] if history_pairs else ""
+            if "Assistant:" in last_pair:
+                last_reply = last_pair.split("Assistant:", 1)[1].strip().lower()
+                create_pool_keywords = [
+                    "what name do we give to the pool",
+                    "opensea collection link",
+                    "creator fee",
+                    "buying price", "set a buying price",
+                    "selling price", "set a selling price"
+                ]
+                nft_statistics_keywords = [
+                    "please provide the opensea collection link or slug",
+                    "please provide a collection slug or link"
+                ]
+                
+                # Check if user is explicitly requesting a different action
+                user_msg_lower = req.message.lower()
+                explicit_create_pool = any(phrase in user_msg_lower for phrase in [
+                    "create a pool", "create pool", "make a pool", "new pool", "start pool creation"
+                ])
+                explicit_nft_stats = any(phrase in user_msg_lower for phrase in [
+                    "floor price", "statistics", "stats", "market cap", "volume", "price data"
+                ])
+                
+                # If user explicitly requests different intent, allow intent switching
+                if explicit_create_pool and last_intent != "create_pool":
+                    logger.info("[Chat] User explicitly requested create_pool, switching from %r", last_intent)
+                    # Don't force flow continuation, let classifier decide
+                elif explicit_nft_stats and last_intent != "nft_statistics":
+                    logger.info("[Chat] User explicitly requested nft_statistics, switching from %r", last_intent)
+                    # Don't force flow continuation, let classifier decide
+                # Primary check: use last intent if available and no explicit switch
+                elif last_intent == "create_pool" and not explicit_nft_stats:
+                    in_create_pool_flow = True
+                elif last_intent == "nft_statistics" and not explicit_create_pool:
+                    in_nft_statistics_flow = True
+                # Fallback: check keywords in assistant message
+                elif any(keyword in last_reply for keyword in create_pool_keywords):
+                    in_create_pool_flow = True
+                elif any(keyword in last_reply for keyword in nft_statistics_keywords):
+                    in_nft_statistics_flow = True
 
-    # Classify intent - if we're in create_pool flow, stay in it unless user cancels
+    # Classify intent - stay in flow unless user cancels
     if in_create_pool_flow and not any(w in req.message.lower() for w in ["cancel", "stop", "abort"]):
         intent = "create_pool"
-        logger.info("[Chat] Staying in create_pool flow (detected from conversation history)")
+        logger.info("[Chat] Staying in create_pool flow (last intent: %r)", last_intent)
+    elif in_nft_statistics_flow and not any(w in req.message.lower() for w in ["cancel", "stop", "abort"]):
+        intent = "nft_statistics"
+        logger.info("[Chat] Staying in nft_statistics flow (last intent: %r)", last_intent)
     else:
         classifier = LLMIntentClassifier()
         intent = await classifier.classify(rewritten)
@@ -299,6 +351,7 @@ async def handle_message(req: ChatRequest, db: Session = Depends(get_db)) -> Cha
             "buyPrice": float(buy_price or 0),
             "sellPrice": float(sell_price or 0),
             "chainId": chain_id,
+            "collection_slug": opensea_link.strip().split("/")[-1]
         }
         logger.info("[Chat] Pool creation payload: %r", payload)
 
@@ -345,28 +398,34 @@ async def handle_message(req: ChatRequest, db: Session = Depends(get_db)) -> Cha
         limit = int((req.params or {}).get("limit", 20))
         data = await client.get_trending_collections(limit=limit)
         logger.info("[Chat] Trending fetched: %d items", len(data) if isinstance(data, list) else -1)
-        reply_text = f"Here are the top {limit} trending NFT collections in ~24h by volume."
+        
+        # Generate natural language response using LLM
+        responder = CollectionsResponder()
+        reply_text = await responder.generate_trending_response(req.message, data, limit)
+        
         _persist(db, req, rewritten, intent, reply_text, data, effective_user_id=effective_user_id)
         return ChatResponse(
             reply=reply_text,
-            data=data,
         )
 
     if intent == "opensea_volume":
         params = req.params or {}
-        min_volume = float(params.get("min_volume_eth", 3000000))
-        days = int(params.get("days", 5))
+        min_volume = float(params.get("min_volume_eth", 1000000))
+        days = int(params.get("days", 7))
         chain = params.get("chain")
         raw_data = await client.get_collections_by_volume(min_volume_eth=min_volume, days=days, chain=chain)
         logger.info("[Chat] Volume fetched: params min=%s days=%s chain=%s", min_volume, days, chain)
+
+        logger.info("[Chat] Volume data fetched: %s", raw_data)
         
-        formatted_collections = extract_collections(raw_data)
-        formatted_data = {"collections": formatted_collections}
-        logger.info("[Chat] Formatted %d collections for volume response", len(formatted_collections))
-        logger.info("[Chat] Sample formatted collection: %r", formatted_collections[0] if formatted_collections else None)
-        reply_text = f"Collections with at least {min_volume} ETH volume in the last {days} days."
-        _persist(db, req, rewritten, intent, reply_text, formatted_data, effective_user_id=effective_user_id)
-        return ChatResponse(reply=reply_text, data=formatted_data)
+        # Generate natural language response using LLM
+        responder = CollectionsResponder()
+        reply_text = await responder.generate_volume_response(req.message, raw_data, min_volume, days)
+
+        logger.info("[Chat] Volume response: %s", reply_text)
+        
+        _persist(db, req, rewritten, intent, reply_text, raw_data, effective_user_id=effective_user_id)
+        return ChatResponse(reply=reply_text)
 
     if intent == "opensea_collections":
         params = req.params or {}
@@ -377,54 +436,61 @@ async def handle_message(req: ChatRequest, db: Session = Depends(get_db)) -> Cha
         raw_data = await client.get_collections(order_by=order_by, order_direction=order_direction, limit=limit, chain=chain)
         logger.info("[Chat] Collections fetched: order_by=%s direction=%s limit=%s chain=%s", order_by, order_direction, limit, chain)
         
-        # Format the data to return only requested fields
-        formatted_collections = []
-        collections = raw_data.get("collections", [])
-        for collection in collections:
-            if isinstance(collection, dict):
-                # Extract chain from contracts array
-                collection_chain = ""
-                contracts = collection.get("contracts", [])
-                if contracts and isinstance(contracts, list) and len(contracts) > 0:
-                    collection_chain = contracts[0].get("chain", "")
-                
-                # Get collection slug for URL
-                collection_slug = collection.get("collection", "")
-                opensea_url = f"https://opensea.io/collection/{collection_slug}" if collection_slug else ""
-                
-                formatted_collections.append({
-                    "name": collection.get("name", ""),
-                    "category": collection.get("category", ""),
-                    "chain": collection_chain,
-                    "opensea_url": opensea_url
-                })
-        
-        formatted_data = {"collections": formatted_collections}
-        logger.info("[Chat] Formatted %d collections for collections response", len(formatted_collections))
-        logger.info("[Chat] Sample formatted collection: %r", formatted_collections[0] if formatted_collections else None)
-        reply_text = f"Top {limit} collections ordered by {order_by} ({order_direction})."
-        _persist(db, req, rewritten, intent, reply_text, formatted_data, effective_user_id=effective_user_id)
-        return ChatResponse(reply=reply_text, data=formatted_data)
+        # Generate natural language response using LLM
+        responder = CollectionsResponder()
+        reply_text = await responder.generate_collections_response(req.message, raw_data, order_by, limit)
+
+        _persist(db, req, rewritten, intent, reply_text, raw_data, effective_user_id=effective_user_id)
+        return ChatResponse(reply=reply_text)
 
     if intent == "nft_statistics":
-        # Try to get a collection slug from message or params
+        # Check for cancellation
+        if any(w in req.message.lower() for w in ["cancel", "stop", "abort"]):
+            reply_text = "Okay, I've cancelled the NFT statistics request."
+            _persist(db, req, rewritten, intent, reply_text, effective_user_id=effective_user_id)
+            return ChatResponse(reply=reply_text)
+        
+        # Get conversation history for this conversation to check if we already asked for OpenSea link
+        history_pairs = []
+        if req.conversation_id:
+            history_msgs = db.execute(
+                text("SELECT user_question, ai_answer as assistant_reply FROM conversation_messages WHERE conversation_id = :conv_id ORDER BY created_at ASC"),
+                {"conv_id": req.conversation_id}
+            ).fetchall()
+            for msg in history_msgs:
+                if msg[0] and msg[1]:  # user_question and assistant_reply
+                    history_pairs.append(f"User: {msg[0]}\nAssistant: {msg[1]}")
+        
+        # Check if we already asked for OpenSea link in this conversation
+        asked_for_link = False
+        if history_pairs:
+            last_pair = history_pairs[-1] if history_pairs else ""
+            if "Assistant:" in last_pair:
+                last_reply = last_pair.split("Assistant:", 1)[1].strip().lower()
+                asked_for_link = "please provide the opensea collection link or slug" in last_reply
+        
+        # Try to get a collection slug from the current message
         import re
-        text_msg = rewritten
+        text_msg = req.message  # Use original message, not rewritten
         slug = None
         m = re.search(r"opensea\.io/collection/([a-z0-9\-]+)", text_msg, flags=re.I)
         if m:
             slug = m.group(1)
-        if not slug:
-            m2 = re.search(r"(?:of|for)\s+([a-z0-9\- ]+)", text_msg, flags=re.I)
-            if m2:
-                slug = m2.group(1).strip().lower().replace(" ", "-")
-        if not slug and req.params and isinstance(req.params.get("slug"), str):
-            slug = str(req.params.get("slug")).strip()
-        if not slug:
-            reply_text = "Please provide a collection slug or link, e.g., https://opensea.io/collection/pudgypenguins"
+            logger.info("[Chat] Extracted slug from OpenSea URL: %s", slug)
+        
+        # If no slug found and we haven't asked for link yet, ask for it
+        if not slug and not asked_for_link:
+            reply_text = "Please provide the OpenSea collection link or slug (e.g., https://opensea.io/collection/pudgypenguins) and I'll fetch the statistics for you."
+            _persist(db, req, rewritten, intent, reply_text, effective_user_id=effective_user_id)
+            return ChatResponse(reply=reply_text)
+        
+        # If no slug found but we already asked, give error
+        if not slug and asked_for_link:
+            reply_text = "I couldn't find a valid OpenSea collection link in your message. Please provide a link like https://opensea.io/collection/pudgypenguins"
             _persist(db, req, rewritten, intent, reply_text, effective_user_id=effective_user_id)
             return ChatResponse(reply=reply_text)
 
+        # We have a slug, fetch the stats
         try:
             client = OpenSeaClient()
             stats_data = await client.get_collection_stats(slug)
@@ -432,7 +498,14 @@ async def handle_message(req: ChatRequest, db: Session = Depends(get_db)) -> Cha
             
             # Generate natural language response using LLM
             responder = StatsResponder()
-            reply_text = await responder.generate_response(req.message, slug, stats_data)
+            # Use the original user question from history if available
+            original_question = req.message
+            if history_pairs and len(history_pairs) >= 1:
+                first_pair = history_pairs[0]
+                if "User:" in first_pair:
+                    original_question = first_pair.split("User:", 1)[1].split("\nAssistant:", 1)[0].strip()
+            
+            reply_text = await responder.generate_response(original_question, slug, stats_data)
             
             # Also include structured data for frontend
             data = {
@@ -566,52 +639,3 @@ def get_messages(
         if r.ai_answer:
             out.append(ChatMessageItem(role="assistant", content=r.ai_answer))
     return out
-
-
-
-
-def to_dict(obj):
-    # If you accidentally passed a stringified response, fix it here.
-    if isinstance(obj, str):
-        obj = obj.strip()
-        # try to extract the JSON part if the string contains log prefixes
-        if obj.startswith("{") or obj.startswith("["):
-            return json.loads(obj)
-        # naive fallback: find first '{'
-        i = obj.find("{")
-        if i != -1:
-            return json.loads(obj[i:])
-        raise ValueError("raw_data is a string but not JSON.")
-    return obj
-
-def extract_collections(raw_data):
-    raw_data = to_dict(raw_data)
-
-    # Handle nesting like {"data": {"collections": [...]}} if present
-    candidate = raw_data
-    if "collections" not in candidate and "data" in candidate and isinstance(candidate["data"], dict):
-        candidate = candidate["data"]
-
-    colls = candidate.get("collections", [])
-    if isinstance(colls, dict):
-        # Some APIs return an object keyed by id; normalize to list
-        colls = list(colls.values())
-
-    # Early diagnostics to catch shape issues fast
-    assert isinstance(colls, list), f"`collections` should be a list, got {type(colls)}"
-
-    formatted = []
-    for c in colls:
-        if not isinstance(c, dict):
-            continue
-        contracts = c.get("contracts") or []
-        chain = contracts[0].get("chain", "") if contracts and isinstance(contracts, list) else ""
-        slug = c.get("collection", "")
-        opensea_url = f"https://opensea.io/collection/{slug}" if slug else (c.get("opensea_url") or "")
-        formatted.append({
-            "name": c.get("name", ""),
-            "category": c.get("category", ""),
-            "chain": chain,
-            "opensea_url": opensea_url,
-        })
-    return formatted

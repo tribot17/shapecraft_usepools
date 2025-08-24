@@ -20,10 +20,13 @@ class QueryRewriter:
         "Rules:\n"
         "1. Fix grammar and spelling errors\n"
         "2. Read at the previous user question and the previous assistant answer to understand the context and rewrite the query to be more complete and contextual.\n"
+        "3. If the user query is about creating a pool, return the query as is.\n"
+        "4. Always preserve the user's original query intention.\n"
 
         "Examples of grammatical errors corrected:\n"
-        "eg. hllo -> hello"
+        "hllo -> hello"
         "create a pool -> create a pool"
+        "Awesome -> Awesome"
 
         "Examples of contextually complete queries:\n"
         "what's the current floor price of the collection? -> what's the current floor price of the collection Pudgy Penguins?"
