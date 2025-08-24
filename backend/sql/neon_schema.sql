@@ -1,36 +1,14 @@
--- Neon (PostgreSQL) schema for Scooby auth and wallet features
+-- Neon (PostgreSQL) schema for Scooby wallet-only auth
 
--- Core users table (store UUIDs as text; app generates them)
+-- Minimal users table: one row per wallet-auth user
 CREATE TABLE IF NOT EXISTS public.users (
   user_id        text PRIMARY KEY,
-  email          text NOT NULL,
-  password_hash  text NOT NULL,
-  registered_at  timestamptz NOT NULL DEFAULT now(),
-  wallet_address text NULL,
-  verified_at timestamptz NULL
+  wallet_address text NOT NULL,
+  registered_at  timestamptz NOT NULL DEFAULT now()
 );
 
--- Case-insensitive unique email
-CREATE UNIQUE INDEX IF NOT EXISTS ux_users_email_ci ON public.users (lower(email));
-
--- Optional: enforce unique wallet per user (uncomment to enable)
--- CREATE UNIQUE INDEX IF NOT EXISTS ux_users_wallet ON public.users (wallet_address) WHERE wallet_address IS NOT NULL;
-
--- Email verification codes for sign-up flow
-CREATE TABLE IF NOT EXISTS public.email_verification_codes (
-  id           bigserial PRIMARY KEY,
-  user_id      text NULL REFERENCES public.users(user_id) ON DELETE CASCADE,
-  email        text NULL,
-  password_hash text NULL,
-  code         text NOT NULL,
-  created_at   timestamptz NOT NULL DEFAULT now(),
-  expires_at   timestamptz NOT NULL DEFAULT (now() + interval '15 minutes'),
-  consumed_at  timestamptz NULL
-);
-
--- Fast lookup by code
-CREATE INDEX IF NOT EXISTS ix_verif_code ON public.email_verification_codes (code);
-CREATE INDEX IF NOT EXISTS ix_verif_email_ci ON public.email_verification_codes (lower(email));
+-- Enforce one account per wallet
+CREATE UNIQUE INDEX IF NOT EXISTS ux_users_wallet ON public.users (lower(wallet_address));
 
 -- Conversation memory table
 CREATE TABLE IF NOT EXISTS public.conversation_messages (

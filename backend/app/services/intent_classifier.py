@@ -3,11 +3,24 @@ from __future__ import annotations
 from typing import Literal
 
 from openai import OpenAI
+from pydantic import BaseModel, ValidationError
+import json
 
 from ..core.config import settings
+import logging
 
 
-Intent = Literal["small_talk", "opensea_trending", "opensea_volume", "opensea_collections"]
+Intent = Literal[
+    "small_talk",
+    "opensea_trending",
+    "opensea_volume",
+    "opensea_collections",
+    "create_pool",
+]
+
+
+class IntentResult(BaseModel):
+    intent: Intent
 
 
 class LLMIntentClassifier:
@@ -19,37 +32,71 @@ class LLMIntentClassifier:
             self.client = OpenAI(api_key=key)
 
     async def classify(self, text: str) -> Intent:
-        # Fallback heuristic if no OpenAI key available
-        if not self.client:
-            t = text.lower()
-            if any(w in t for w in ["trending", "24h", "24 h", "last 24"]):
+        """Classify text into an intent using structured JSON output.
+
+        Falls back to a robust keyword heuristic if the LLM output is invalid.
+        """
+
+        def heuristic(msg: str) -> Intent:
+            t = msg.lower()
+            if any(k in t for k in ["create a pool", "create pool", "new pool", "launch pool"]):
+                return "create_pool"
+            if any(k in t for k in ["trending", "24h", "24 h", "last 24"]):
                 return "opensea_trending"
-            if any(w in t for w in ["volume", "3m", "5 days", "five days"]):
+            if any(k in t for k in ["volume", "7d volume", "3m volume", "five days", "5 days"]):
                 return "opensea_volume"
+            if any(k in t for k in ["market cap", "num owners", "owners", "floor price", "collections with"]):
+                return "opensea_collections"
             return "small_talk"
 
+        if not self.client:
+            return heuristic(text)
+
         system = (
-            "You are an intent classifier for an NFT assistant named Scooby. "
-            "Return ONLY one of: small_talk, opensea_trending, opensea_volume, opensea_collections. "
-            "small_talk is for greetings or generic questions. "
+            "You are an intent classifier for the Scooby NFT assistant. "
+            "Respond with JSON ONLY, matching this schema: {\"intent\": <one-of>}. "
+            "Allowed values for intent: small_talk, opensea_trending, opensea_volume, opensea_collections, create_pool."
+
             "opensea_trending is for queries about trending collections in ~24h. "
             "opensea_volume is for queries about collection volume over N days. "
-            "opensea_collections is for custom sorting or filters like market cap, num owners, floor change."
-        )
-        user = f"Classify this user message into an intent: {text!r}. Return only the label."
+            "opensea_collections is for custom sorting or filters like market cap, num owners, floor change. "
+            "create_pool is for queries about creating a pool."
 
-        resp = self.client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
-            temperature=0,
-            max_tokens=4,
+            "Examples:"
+            "Can you create a pool? -> create_pool"
+            "What are NFTs? -> small_talk"
+            "How can I better trade NFTs? -> small_talk"
+            "What are the trending collections? -> opensea_trending"
+            "What are the collections with the highest volume? -> opensea_volume"
+            "What are the collections with the highest market cap? -> opensea_collections"
+            "What are the collections with the highest floor price? -> opensea_collections"
+            "What are the collections with the highest number of owners? -> opensea_collections"
         )
-        label = resp.choices[0].message.content.strip().lower()
-        if label in {"small_talk", "opensea_trending", "opensea_volume"}:
-            return label  # type: ignore[return-value]
-        return "small_talk"
+        
+        user_msg = (
+            "Classify the following user message into one intent. "
+            "Return ONLY a JSON object with a single key 'intent'.\n\n"
+            f"Message: {text!r}"
+        )
+
+        try:
+            resp = self.client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user_msg},
+                ],
+                temperature=0,
+                response_format={"type": "json_object"},
+                max_tokens=20,
+            )
+            raw = resp.choices[0].message.content or "{}"
+            data = json.loads(raw)
+            parsed = IntentResult.model_validate(data)
+            logging.info(f"Intent classifier parsed: {parsed.intent}")
+            return parsed.intent
+        except (json.JSONDecodeError, ValidationError, Exception) as e:  # noqa: BLE001
+            logging.warning(f"Intent clf fallback due to error: {e}")
+            return heuristic(text)
 
 
