@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from typing import Any, Dict, Literal, Optional
 import logging
 import json 
@@ -13,6 +14,7 @@ from ..services.opensea_client import OpenSeaClient
 from ..services.intent_classifier import LLMIntentClassifier
 from ..services.query_rewriter import QueryRewriter
 from ..services.small_talk import SmallTalkResponder
+from ..services.stats_responder import StatsResponder
 from ..core.database import get_db
 import aiohttp
 from ..models.models import ConversationMessage, User
@@ -305,7 +307,7 @@ async def handle_message(req: ChatRequest, db: Session = Depends(get_db)) -> Cha
         creation_err: str | None = None
         pool_response: dict | None = None
         try:
-            fe_base = "http://localhost:3002"
+            fe_base = os.getenv("FE_BASE_URL", "http://localhost:3002")
             url = f"{fe_base}/api/pool/create"
             headers = {
                 "Content-Type": "application/json",
@@ -423,21 +425,30 @@ async def handle_message(req: ChatRequest, db: Session = Depends(get_db)) -> Cha
             _persist(db, req, rewritten, intent, reply_text, effective_user_id=effective_user_id)
             return ChatResponse(reply=reply_text)
 
-        client = OpenSeaClient()
-        stats = await client.get_collection_stats(slug)
-        formatted_stats = {
-            "floor_price": stats.get("floor_price") or stats.get("floor_price_native"),
-            "one_day_volume": stats.get("one_day_volume"),
-            "seven_day_volume": stats.get("seven_day_volume"),
-            "market_cap": stats.get("market_cap"),
-            "num_owners": stats.get("num_owners"),
-        }
-        reply_text = (
-            f"Stats for {slug}: floor {formatted_stats.get('floor_price')} | 24h vol {formatted_stats.get('one_day_volume')} | 7d vol {formatted_stats.get('seven_day_volume')}"
-        )
-        data = {"slug": slug, "stats": formatted_stats, "opensea_url": f"https://opensea.io/collection/{slug}"}
-        _persist(db, req, rewritten, intent, reply_text, data, effective_user_id=effective_user_id)
-        return ChatResponse(reply=reply_text, data=data)
+        try:
+            client = OpenSeaClient()
+            stats_data = await client.get_collection_stats(slug)
+            logger.info("[Chat] Stats fetched for %s: %s", slug, list(stats_data.keys()) if isinstance(stats_data, dict) else "non-dict")
+            
+            # Generate natural language response using LLM
+            responder = StatsResponder()
+            reply_text = await responder.generate_response(req.message, slug, stats_data)
+            
+            # Also include structured data for frontend
+            data = {
+                "slug": slug, 
+                "stats": stats_data, 
+                "opensea_url": f"https://opensea.io/collection/{slug}"
+            }
+            
+            _persist(db, req, rewritten, intent, reply_text, data, effective_user_id=effective_user_id)
+            return ChatResponse(reply=reply_text, data=data)
+            
+        except Exception as e:
+            logger.error("[Chat] Error fetching stats for %s: %s", slug, e)
+            reply_text = f"Sorry, I couldn't fetch statistics for {slug}. The collection might not exist or there could be an API issue."
+            _persist(db, req, rewritten, intent, reply_text, effective_user_id=effective_user_id)
+            return ChatResponse(reply=reply_text)
 
     raise HTTPException(status_code=400, detail="Unsupported intent")
 
