@@ -209,6 +209,20 @@ export default function ChatSidebar() {
               </svg>
               🧪 Test Pool
             </Link>
+            <Link
+              href="/test-invest"
+              className="flex items-center gap-2 text-sm text-white/60 hover:text-white transition-colors"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                className="w-4 h-4"
+              >
+                <path d="M12 2.25c5.385 0 9.75 4.365 9.75 9.75s4.365 9.75 9.75 9.75-9.75-4.365-9.75-9.75S17.385 2.25 12 2.25ZM12.75 6a.75.75 0 0 0-1.5 0v6c0 .414.336.75.75.75h4.5a.75.75 0 0 0 0-1.5h-3.75V6Z" />
+              </svg>
+              💰 Test Invest
+            </Link>
             {/* <Link
               href="/admin/auto-invest"
               className="flex items-center gap-2 text-sm text-white/60 hover:text-white transition-colors"
