@@ -41,11 +41,19 @@ https://github.com/tribot17/shapecraft_usepools/blob/main/chat_pool_creation.mp4
 
 ### Video 3: Pool Management & Investment
 
-[![Description](auto-invest.png)]
-invest conversation
-[![Description](invested.png)]
+_[Video not completed due to time constraints]_
 
-CF : auto-invest.png and invested.png
+**Screenshots of available features:**
+
+Video : https://github.com/tribot17/shapecraft_usepools/blob/main/chatInvest.mov
+
+![Auto-Investment Conversation](auto-invest.png)
+
+_Invest conversation interface_
+
+![Investment Confirmation](invested.png)
+
+_Investment confirmation and tracking_
 
 **What to showcase:**
 
