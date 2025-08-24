@@ -11,9 +11,9 @@ export default function ChatPage() {
   const chatId = searchParams.get("id");
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<
-    Array<{ 
-      role: "user" | "assistant"; 
-      content: string; 
+    Array<{
+      role: "user" | "assistant";
+      content: string;
       data?: {
         collections?: Array<{
           name: string;
@@ -197,8 +197,8 @@ export default function ChatPage() {
     }
     // After first send, refresh conversations list
     refreshConversations();
-    return (await res.json()) as { 
-      reply: string; 
+    return (await res.json()) as {
+      reply: string;
       data?: {
         collections?: Array<{
           name: string;

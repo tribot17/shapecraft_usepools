@@ -6,8 +6,8 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Scooby - Stock Trading Companion",
-  description: "Your AI-powered stock trading companion",
+  title: "Usepools-Scooby-Agent",
+  description: "Your AI-powered NFT Assistant",
 };
 
 export default function RootLayout({

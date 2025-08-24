@@ -74,7 +74,7 @@ export function AutoInvestForm({
     }
 
     if (!managedWallet) return;
-  }, [user?.id, user?.managedWallets, getBalance, formData.walletId]);
+  }, [user?.id, user?.managedWallets, getBalance]);
 
   useEffect(() => {
     fetchWallets();

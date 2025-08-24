@@ -117,7 +117,7 @@ export default function ChatSidebar() {
                   Alpha 0.1
                 </span>
                 <span className="text-xl font-semibold text-white">
-                  &Scooby
+                  &Usepools-Scooby-Agent
                 </span>
               </div>
             </div>
@@ -209,7 +209,7 @@ export default function ChatSidebar() {
               </svg>
               🧪 Test Pool
             </Link>
-            <Link
+            {/* <Link
               href="/admin/auto-invest"
               className="flex items-center gap-2 text-sm text-white/60 hover:text-white transition-colors"
             >
@@ -226,7 +226,7 @@ export default function ChatSidebar() {
                 />
               </svg>
               ⚙️ Admin
-            </Link>
+            </Link> */}
             <div className="h-px bg-white/5" />
             <span className="text-sm font-medium text-white">All Chats</span>
           </div>
