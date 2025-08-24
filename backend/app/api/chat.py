@@ -251,10 +251,12 @@ async def handle_message(req: ChatRequest, db: Session = Depends(get_db)) -> Cha
                     pool_name = conversation_turns[i + 1][0].strip()
                 elif req.message.strip():  # Current message is the answer
                     pool_name = req.message.strip()
-            # Always ask for the OpenSea link during this flow, do not reuse
-            # a previously provided link unless it was explicitly the answer
-            # to the most recent "Provide the OpenSea collection link" prompt.
-            # So we intentionally skip reconstructing from earlier turns here.
+            elif "opensea collection link" in assistant_lower and not opensea_link:
+                # The next user message (if exists) should be the opensea link
+                if i + 1 < len(conversation_turns):
+                    opensea_link = extract(r"https?://opensea\.io/collection/([a-z0-9\-]+)", conversation_turns[i + 1][0])
+                elif req.message.strip():  # Current message is the answer
+                    opensea_link = extract(r"https?://opensea\.io/collection/([a-z0-9\-]+)", req.message)
             elif "creator fee" in assistant_lower and not creator_fee:
                 if i + 1 < len(conversation_turns):
                     creator_fee = parse_number(conversation_turns[i + 1][0])
@@ -281,11 +283,12 @@ async def handle_message(req: ChatRequest, db: Session = Depends(get_db)) -> Cha
                 sell_price = parse_number(last_user_text)
             if "what name do we give to the pool" in last_assistant and not pool_name:
                 pool_name = last_user_text.strip()
-            # Do not backfill OpenSea link from earlier context to avoid
-            # accidentally using a stale collection. It must be answered
-            # right after we ask for it.
+            if "opensea collection link" in last_assistant and not opensea_link:
+                opensea_link = extract(r"https?://opensea\.io/collection/([a-z0-9\-]+)", last_user_text)
 
-        # If user answered with just a number to the current prompt, capture it
+        # If user answered the current prompt, capture it
+        if not opensea_link and last_assistant and "opensea collection link" in last_assistant:
+            opensea_link = extract(r"https?://opensea\.io/collection/([a-z0-9\-]+)", req.message)
         if not creator_fee and last_assistant and "creator fee" in last_assistant:
             creator_fee = parse_number(req.message)
         if not buy_price and last_assistant and any(p in last_assistant for p in ["buying price", "set a buying price"]):
@@ -504,8 +507,11 @@ async def handle_message(req: ChatRequest, db: Session = Depends(get_db)) -> Cha
         url = f"{fe_base}/api/pools/collection/{address}"
         pools_data: dict | None = None
         try:
+            headers = {
+                "x-internal-call": "true"
+            }
             async with aiohttp.ClientSession() as session:
-                async with session.get(url) as resp:
+                async with session.get(url, headers=headers) as resp:
                     if resp.status == 200:
                         pools_data = await resp.json()
                     else:
@@ -729,8 +735,12 @@ async def handle_message(req: ChatRequest, db: Session = Depends(get_db)) -> Cha
         invest_payload = {"poolId": pool_id, "amount": amount, "wallet_address": req.wallet_address}
         logger.info("[Chat] Invest payload: %s", invest_payload)
         try:
+            headers = {
+                "Content-Type": "application/json",
+                "x-internal-call": "true"
+            }
             async with aiohttp.ClientSession() as session:
-                async with session.post(url, json=invest_payload) as resp:
+                async with session.post(url, json=invest_payload, headers=headers) as resp:
                     if resp.status == 200:
                         data = await resp.json()
                         reply_text = "✅ Investment submitted successfully."
