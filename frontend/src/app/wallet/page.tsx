@@ -1,6 +1,5 @@
 "use client";
 
-import { PoolAuthButton } from "@/components/auth/PoolAuthButton";
 import ChatSidebar from "@/components/chat/ChatSidebar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -231,7 +230,7 @@ function WalletPageContent() {
     return (
       <div className="flex min-h-screen bg-[#141414]">
         <ChatSidebar />
-        <main className="flex-1 ml-[360px] flex items-center justify-center">
+        <main className="flex-1 ml-[280px] flex items-center justify-center">
           <div className="text-white">Loading...</div>
         </main>
       </div>
@@ -246,7 +245,7 @@ function WalletPageContent() {
     return (
       <div className="flex min-h-screen bg-[#141414]">
         <ChatSidebar />
-        <main className="flex-1 ml-[360px] flex items-center justify-center">
+        <main className="flex-1 ml-[280px] flex items-center justify-center">
           <Card className="w-96">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -267,7 +266,7 @@ function WalletPageContent() {
   return (
     <div className="flex min-h-screen bg-[#141414]">
       <ChatSidebar />
-      <main className="flex-1 ml-[360px]">
+      <main className="flex-1 ml-[280px]">
         <div className="container mx-auto px-4 py-8">
           <div className="flex items-center justify-between mb-8">
             <div>
@@ -349,19 +348,6 @@ function WalletPageContent() {
             </Card>
           ) : (
             <div className="space-y-6">
-              {/* Pool Connection */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Pool Connection</CardTitle>
-                  <CardDescription>
-                    Connect to UsePools for automated DeFi strategies
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <PoolAuthButton />
-                </CardContent>
-              </Card>
-
               {/* Network Selection */}
               <Card>
                 <CardHeader>

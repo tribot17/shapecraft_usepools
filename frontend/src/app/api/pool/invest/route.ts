@@ -1,6 +1,6 @@
 import { authOptions } from "@/lib/auth";
 import { decryptPrivateKey } from "@/lib/crypto/encryption";
-import { PoolService } from "@/lib/web3/pool";
+import { PoolService } from "@/services/Pool";
 import { TransactionStatus, TransactionType } from "@prisma/client";
 import { getPoolById } from "models/Pool";
 import { createTransaction } from "models/Transaction";

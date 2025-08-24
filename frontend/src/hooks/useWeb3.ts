@@ -13,7 +13,7 @@ import { useAccount, useChainId } from "wagmi";
 import { getAccount, getWalletClient } from "wagmi/actions";
 
 export interface TransactionOptions {
-  chainId?: number;
+  chainId?: string;
   gasLimit?: bigint;
   maxFeePerGas?: bigint;
   maxPriorityFeePerGas?: bigint;
@@ -48,7 +48,7 @@ export function useWeb3() {
         throw error;
       }
     },
-    [address, chainId]
+    [address]
   );
 
   const generateOwnershipProof = useCallback(
@@ -74,7 +74,9 @@ export function useWeb3() {
       const account = getAccount(config);
       const walletClient = await getWalletClient(config);
 
-      const publicClient = getPublicClientForChain(options.chainId || 11011);
+      const publicClient = getPublicClientForChain(
+        Number(options.chainId) || 11011
+      );
 
       if (!account) {
         throw new Error("No account available");
@@ -114,6 +116,7 @@ export function useWeb3() {
 
   return {
     address,
+    chainId,
     isConnected,
     generateOwnershipProof,
     getBalance,

@@ -74,9 +74,11 @@ export function decryptPrivateKeyAny(encryptedData: string): string {
   // Try new scheme
   try {
     return decryptPrivateKey(encryptedData);
-  } catch (_e) {
+  } catch {
     // Fallback to legacy scheme
-    const password = process.env.WALLET_ENCRYPTION_KEY || "your-secret-key-32-characters-long!";
+    const password =
+      process.env.WALLET_ENCRYPTION_KEY ||
+      "your-secret-key-32-characters-long!";
     // Legacy data format: ivHex:encryptedHex produced with createCipher/createDecipher (AES-256-CBC)
     const parts = encryptedData.split(":");
     const encryptedHex = parts.length === 2 ? parts[1] : encryptedData; // some old records may not include iv

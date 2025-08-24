@@ -1,12 +1,7 @@
-import { prisma } from "@/lib/prisma";
-import crypto from "crypto";
-import { ethers } from "ethers";
 import { encryptPrivateKey } from "@/lib/crypto/encryption";
+import { prisma } from "@/lib/prisma";
+import { ethers } from "ethers";
 import { NextRequest, NextResponse } from "next/server";
-
-// Encryption helper functions
-const ENCRYPTION_KEY = process.env.WALLET_ENCRYPTION_KEY;
-const ALGORITHM = "aes-256-cbc";
 
 // GET /api/wallets - Get wallets for a user
 export async function GET(request: NextRequest) {
@@ -96,7 +91,9 @@ export async function POST(request: NextRequest) {
     });
 
     // Remove private key from response
-    const { encryptedPrivateKey: _, ...sanitizedWallet } = managedWallet;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { encryptedPrivateKey: _encryptedKey, ...sanitizedWallet } =
+      managedWallet;
 
     return NextResponse.json(sanitizedWallet, { status: 201 });
   } catch (error) {

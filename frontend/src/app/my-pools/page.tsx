@@ -11,7 +11,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useConditionalWallet } from "@/hooks/useConditionalWallet";
-import { Pool } from "@prisma/client";
 import {
   Copy,
   ExternalLink,
@@ -24,6 +23,19 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+
+interface Pool {
+  id: string;
+  name: string;
+  nftCollectionAddress: string;
+  poolAddress: string;
+  creatorFee: number;
+  buyPrice: string;
+  sellPrice: string;
+  totalContribution: number;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export default function MyPoolsPage() {
   const { user, isLoading } = useConditionalWallet();
@@ -158,7 +170,7 @@ export default function MyPoolsPage() {
     }
 
     return (
-      <div className="space-y-6 flex-1 ml-[360px]">
+      <div className="space-y-6">
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card>
@@ -214,8 +226,7 @@ export default function MyPoolsPage() {
                   <div>
                     <CardTitle className="text-lg">{pool.name}</CardTitle>
                     <CardDescription>
-                      Created{" "}
-                      {formatDate(new Date(pool.createdAt).toISOString())}
+                      Created {formatDate(pool.createdAt)}
                     </CardDescription>
                   </div>
                   <Badge variant="secondary">Active</Badge>
@@ -243,12 +254,14 @@ export default function MyPoolsPage() {
                     <span className="text-muted-foreground">Collection:</span>
                     <div className="flex items-center space-x-2">
                       <code className="text-xs bg-muted px-2 py-1 rounded">
-                        {formatAddress(pool.nftCollection)}
+                        {formatAddress(pool.nftCollectionAddress)}
                       </code>
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => copyToClipboard(pool.nftCollection)}
+                        onClick={() =>
+                          copyToClipboard(pool.nftCollectionAddress)
+                        }
                       >
                         <Copy className="h-3 w-3" />
                       </Button>
@@ -271,7 +284,7 @@ export default function MyPoolsPage() {
                   <div className="text-center p-3 bg-red-50 rounded-lg">
                     <div className="text-xs text-red-700 mb-1">Sell Price</div>
                     <div className="text-sm font-semibold text-red-800">
-                      {formatEther(pool.sellPrice)} ETH
+                      {formatEther(Number(pool.sellPrice))} ETH
                     </div>
                   </div>
                 </div>
@@ -329,12 +342,12 @@ export default function MyPoolsPage() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-50 ">
+    <div className="h-screen bg-gray-50">
       <ChatSidebar />
 
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex flex-col overflow-hidden ml-[280px] h-full">
         {/* Header */}
-        <div className="bg-white border-b border-gray-200 px-6 py-4 ml-[360px]">
+        <div className="bg-white border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">My Pools</h1>

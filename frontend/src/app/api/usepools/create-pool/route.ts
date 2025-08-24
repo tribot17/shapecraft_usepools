@@ -1,9 +1,3 @@
-/**
- * 🌊 Route pour créer un pool via UsePools
- *
- * Utilise le service UsePools pour créer un pool de manière authentifiée
- */
-
 import { authOptions } from "@/lib/auth";
 import { usePoolsClient, type CreatePoolRequest } from "@/services/usepools";
 import { getServerSession } from "next-auth";

@@ -12,9 +12,9 @@ import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
 interface RouteParams {
-  params: {
+  params: Promise<{
     action: string;
-  };
+  }>;
 }
 
 export async function POST(request: Request, { params }: RouteParams) {
@@ -25,7 +25,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    const { action } = params;
+    const { action } = await params;
 
     if (action === "join") {
       const joinData: JoinPoolRequest = await request.json();
@@ -68,9 +68,10 @@ export async function POST(request: Request, { params }: RouteParams) {
       { status: 400 }
     );
   } catch (error) {
-    console.error(`Error with pool ${params.action}:`, error);
+    const resolvedParams = await params;
+    console.error(`Error with pool ${resolvedParams.action}:`, error);
     return NextResponse.json(
-      { error: `Failed to ${params.action} pool` },
+      { error: `Failed to ${resolvedParams.action} pool` },
       { status: 500 }
     );
   }

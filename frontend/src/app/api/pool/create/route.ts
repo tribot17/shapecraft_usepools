@@ -2,6 +2,7 @@ import { authOptions } from "@/lib/auth";
 import { decryptPrivateKeyAny } from "@/lib/crypto/encryption";
 import { getProvider } from "@/lib/web3/config";
 import { getEventFromTransaction } from "@/lib/web3/events";
+import { OpenSeaClient } from "@/services/opensea/client";
 import { PoolService } from "@/services/Pool";
 import { createSessionFromWallet, usePoolsClient } from "@/services/usepools";
 import { ethers } from "ethers";
@@ -13,15 +14,12 @@ import { NextResponse } from "next/server";
 export async function POST(req: Request) {
   const body = await req.json();
   const internalCall = req.headers.get("x-internal-call");
-  
+
   let walletAddress: string;
-  
-  // Check if this is an internal server-to-server call
+
   if (internalCall === "true" && body.wallet_address) {
-    // Server-to-server call - use wallet_address from body
     walletAddress = body.wallet_address;
   } else {
-    // Regular user call - use session
     const session = await getServerSession(authOptions);
     if (!session?.user.walletAddress) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -44,7 +42,6 @@ export async function POST(req: Request) {
     chainId,
     collection_slug,
   } = body;
-  console.log("🚀 ~ POST ~ chainId:", chainId);
 
   const creatorPrivateKey = decryptPrivateKeyAny(
     creator.managedWallets[0].encryptedPrivateKey
@@ -85,6 +82,10 @@ export async function POST(req: Request) {
     creatorId: creator.id,
   });
 
+  const openseaCollection = await OpenSeaClient.getInstance().getCollection(
+    collection_slug
+  );
+
   const usepoolsSession = createSessionFromWallet(creator.walletAddress);
 
   const usepoolsPool = await usePoolsClient.createPool(usepoolsSession, {
@@ -93,8 +94,8 @@ export async function POST(req: Request) {
     poolDescription: "Pool description",
     poolAddress: event.args.poolAddress as string,
     poolPhilosophy: "Pool philosophy",
-    poolImage: "Pool image",
-    collectionName: "Collection name",
+    poolImage: openseaCollection.image_url,
+    collectionName: openseaCollection.name,
     collectionSlug: collection_slug,
     creator: creator.managedWallets[0].address,
     creatorFee: creatorFeeWei.toString(),

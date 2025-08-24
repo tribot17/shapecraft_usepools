@@ -1,5 +1,5 @@
 import { useSession } from "next-auth/react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 interface Pool {
   id: string;
@@ -21,7 +21,7 @@ export const useMyPools = () => {
   const [error, setError] = useState<string | null>(null);
   const [hasChecked, setHasChecked] = useState(false);
 
-  const fetchPools = async () => {
+  const fetchPoolsCallback = useCallback(async () => {
     if (!session?.user?.walletAddress) return;
 
     try {
@@ -43,23 +43,23 @@ export const useMyPools = () => {
       setLoading(false);
       setHasChecked(true);
     }
-  };
+  }, [session?.user?.walletAddress]);
 
   useEffect(() => {
     if (status === "authenticated" && session?.user?.walletAddress) {
-      fetchPools();
+      fetchPoolsCallback();
     } else if (status === "unauthenticated") {
       setHasChecked(true);
       setPools([]);
     }
-  }, [session, status]);
+  }, [session, status, fetchPoolsCallback]);
 
   return {
     pools,
     loading,
     error,
     hasChecked,
-    refetch: fetchPools,
+    refetch: fetchPoolsCallback,
     hasPools: pools.length > 0,
     poolCount: pools.length,
   };

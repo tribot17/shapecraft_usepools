@@ -4,10 +4,14 @@ import { useWeb3 } from "@/hooks/useWeb3";
 import { UserRequest } from "@/requests/User";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { UserWithManagedWallets } from "models/Users";
-import { signIn, signOut as nextAuthSignOut, useSession } from "next-auth/react";
-import { useDisconnect } from "wagmi";
+import {
+  signOut as nextAuthSignOut,
+  signIn,
+  useSession,
+} from "next-auth/react";
 import { usePathname } from "next/navigation";
 import { createContext, useContext, useEffect, useState } from "react";
+import { useDisconnect } from "wagmi";
 
 interface AuthContextType {
   user: UserWithManagedWallets | null;
@@ -129,7 +133,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       <div className="flex items-center justify-center min-h-screen bg-[#141414]">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-white">Chargement...</p>
+          <p className="text-white">Loading...</p>
         </div>
       </div>
     );

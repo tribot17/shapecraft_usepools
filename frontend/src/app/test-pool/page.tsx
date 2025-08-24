@@ -121,17 +121,6 @@ export default function TestPoolPage() {
             Create a test pool to verify the UsePools integration
           </p>
 
-          {/* User Info */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-            <h2 className="font-semibold text-blue-800 mb-2">Current User</h2>
-            <p className="text-sm text-blue-700">
-              <strong>Wallet:</strong> {session.user.walletAddress}
-            </p>
-            <p className="text-sm text-blue-700">
-              <strong>User ID:</strong> {session.user.id}
-            </p>
-          </div>
-
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Pool Name */}
             <div>

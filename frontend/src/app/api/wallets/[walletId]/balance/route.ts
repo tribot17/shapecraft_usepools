@@ -5,10 +5,10 @@ import { NextRequest, NextResponse } from "next/server";
 // GET /api/wallets/[walletId]/balance - Get wallet balance
 export async function GET(
   request: NextRequest,
-  { params }: { params: { walletId: string } }
+  { params }: { params: Promise<{ walletId: string }> }
 ) {
   try {
-    const { walletId } = params;
+    const { walletId } = await params;
 
     // Get wallet from database
     const wallet = await prisma.managedWallet.findUnique({
@@ -84,7 +84,7 @@ export async function GET(
 // POST /api/wallets/[walletId]/balance - Refresh wallet balance
 export async function POST(
   request: NextRequest,
-  { params }: { params: { walletId: string } }
+  { params }: { params: Promise<{ walletId: string }> }
 ) {
   // This would be the same as GET but forces a refresh
   return GET(request, { params });

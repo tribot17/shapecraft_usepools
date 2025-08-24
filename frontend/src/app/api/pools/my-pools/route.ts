@@ -42,7 +42,7 @@ export async function GET() {
       pools: pools.map((pool) => ({
         id: pool.id,
         name: pool.name,
-        nftCollectionAddress: pool.nftCollectionAddress,
+        nftCollectionAddress: pool.nftCollection,
         poolAddress: pool.poolAddress,
         creatorFee: pool.creatorFee,
         buyPrice: pool.buyPrice,

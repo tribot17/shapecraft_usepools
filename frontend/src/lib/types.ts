@@ -1,43 +1,31 @@
 import { Prisma } from "@prisma/client";
 
 // User types
-export type User = Prisma.UserGetPayload<{}>;
-export type UserWithSessions = Prisma.UserGetPayload<{
+export type User = Prisma.UserGetPayload<object>;
+export type UserWithWallets = Prisma.UserGetPayload<{
   include: {
-    chatSessions: true;
-    preferences: true;
+    managedWallets: true;
   };
 }>;
 
-// Chat types
-export type ChatSession = Prisma.ChatSessionGetPayload<{}>;
-export type ChatSessionWithMessages = Prisma.ChatSessionGetPayload<{
+// Pool types
+export type Pool = Prisma.PoolGetPayload<object>;
+export type PoolWithCreator = Prisma.PoolGetPayload<{
   include: {
-    messages: true;
-    user: true;
+    creator: true;
   };
 }>;
 
-export type Message = Prisma.MessageGetPayload<{}>;
-export type MessageWithUser = Prisma.MessageGetPayload<{
+// Wallet types
+export type ManagedWallet = Prisma.ManagedWalletGetPayload<object>;
+export type ManagedWalletWithBalances = Prisma.ManagedWalletGetPayload<{
   include: {
-    user: true;
+    balances: true;
   };
 }>;
 
-// Trading types
-export type Trade = Prisma.TradeGetPayload<{}>;
-export type TradeWithUser = Prisma.TradeGetPayload<{
-  include: {
-    user: true;
-  };
-}>;
-
-// Market data types
-export type MarketData = Prisma.MarketDataGetPayload<{}>;
-
-// Preferences types
-export type UserPreferences = Prisma.UserPreferencesGetPayload<{}>;
+// Transaction types
+export type Transaction = Prisma.TransactionGetPayload<object>;
 
 // Enums
-export { MessageRole, TradeStatus, TradeType } from "@prisma/client";
+export { PoolStatus, PoolType } from "@prisma/client";
