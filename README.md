@@ -1,7 +1,5 @@
 # 🌊 POOLS - AI-Powered NFT Fractional Ownership
 
-![POOLS Auto-Investment](auto-invest.png)
-
 ## 🎯 Our Mission
 
 At POOLS, our mission is to make NFTs accessible by letting people buy together through fractional ownership. But one challenge we kept facing is how much time it takes to gather interest from multiple users at the same time.
@@ -43,8 +41,9 @@ https://github.com/tribot17/shapecraft_usepools/blob/main/chat_pool_creation.mp4
 
 ### Video 3: Pool Management & Investment
 
-[![Description](auto-invest.png)](invest conversation)
-[![Description](invested.png)](invested proof)
+[![Description](auto-invest.png)]
+invest conversation
+[![Description](invested.png)]
 
 CF : auto-invest.png and invested.png
 
