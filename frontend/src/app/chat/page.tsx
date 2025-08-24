@@ -4,6 +4,8 @@ import ChatSidebar from "@/components/chat/ChatSidebar";
 import { useConditionalWallet } from "@/hooks/useConditionalWallet";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 export default function ChatPage() {
   const router = useRouter();
@@ -382,7 +384,15 @@ export default function ChatPage() {
                           : "bg-white/10 text-white"
                       } px-3 py-2 rounded-lg text-sm max-w-[80%]`}
                     >
-                      <div>{m.content}</div>
+                      <div className="prose prose-invert max-w-none text-sm [&>p]:my-0 [&>ul]:my-1 [&>ul]:pl-3 [&>h2]:text-base [&>h2]:font-bold [&>h2]:mb-2 [&>h2]:mt-1 [&>strong]:font-semibold [&>ol]:my-1 [&>ol]:pl-4">
+                        {m.role === "assistant" ? (
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {m.content}
+                          </ReactMarkdown>
+                        ) : (
+                          m.content
+                        )}
+                      </div>
                       {m.role === "assistant" && m.data?.collections && (
                         <div className="mt-3 space-y-2">
                           {m.data.collections.slice(0, 10).map(

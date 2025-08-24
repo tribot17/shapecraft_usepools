@@ -199,14 +199,14 @@ async def handle_message(req: ChatRequest, db: Session = Depends(get_db)) -> Cha
                 logger.warning("[Chat] Error parsing conversation history: %s", e)
                 last_assistant = None
 
-        pool_name = extract(r"pool name:\s*(.+)", transcript) or extract(r"name is\s*['\"]?([^\n]+)", transcript)
-        opensea_link = extract(r"https?://opensea\.io/collection/([a-z0-9\-]+)", transcript)
-        creator_fee = extract(r"creator fee[:\s]*([0-9]+(?:[\.,][0-9]+)?)", transcript)
-        buy_price = extract(r"buy(?:ing)? price[:\s]*([0-9]+(?:[\.,][0-9]+)?)", transcript)
-        sell_price = extract(r"sell(?:ing)? price[:\s]*([0-9]+(?:[\.,][0-9]+)?)", transcript)
-        
-        logger.info("[Chat] Extracted values - pool_name: %r, opensea_link: %r, creator_fee: %r, buy_price: %r, sell_price: %r", 
-                   pool_name, opensea_link, creator_fee, buy_price, sell_price)
+        # STRICT Q&A: Do not infer values opportunistically from arbitrary messages.
+        # Values are only captured as answers to our explicit questions in this flow.
+        pool_name = None
+        opensea_link = None
+        creator_fee = None
+        buy_price = None
+        sell_price = None
+        logger.info("[Chat] Initialized create_pool fields to None for strict Q&A mode")
 
         # If user answered previously to a specific question, reconstruct values
         logger.info("[Chat] last_assistant: %r, last_user_text: %r", last_assistant, last_user_text)
@@ -410,17 +410,16 @@ async def handle_message(req: ChatRequest, db: Session = Depends(get_db)) -> Cha
 
     if intent == "opensea_volume":
         params = req.params or {}
-        min_volume = float(params.get("min_volume_eth", 1000000))
         days = int(params.get("days", 7))
         chain = params.get("chain")
-        raw_data = await client.get_collections_by_volume(min_volume_eth=min_volume, days=days, chain=chain)
-        logger.info("[Chat] Volume fetched: params min=%s days=%s chain=%s", min_volume, days, chain)
+        raw_data = await client.get_collections_by_volume(days=days, chain=chain)
+        logger.info("[Chat] Volume fetched: params min=%s days=%s chain=%s", days, chain)
 
         logger.info("[Chat] Volume data fetched: %s", raw_data)
         
         # Generate natural language response using LLM
         responder = CollectionsResponder()
-        reply_text = await responder.generate_volume_response(req.message, raw_data, min_volume, days)
+        reply_text = await responder.generate_volume_response(req.message, raw_data)
 
         logger.info("[Chat] Volume response: %s", reply_text)
         

@@ -42,7 +42,7 @@ class OpenSeaClient:
             params["chain"] = chain
         return await self._get("/collections", params)
 
-    async def get_collections_by_volume(self, min_volume_eth: float, days: int = 7, limit: int = 50, chain: str | None = None) -> Dict[str, Any]:
+    async def get_collections_by_volume(self, days: int = 7, limit: int = 50, chain: str | None = None) -> Dict[str, Any]:
         # Per docs, supported order_by for volume is seven_day_volume.
         params: Dict[str, Any] = {
             "order_by": "seven_day_volume",
@@ -55,16 +55,8 @@ class OpenSeaClient:
         data = await self._get("/collections", params)
         # Filter client-side using seven_day_volume as proxy for requested days threshold
         collections = data.get("collections", data.get("data", []))
-        filtered: list[Any] = []
-        for c in collections:
-            stats = c.get("stats") or {}
-            vol = stats.get("seven_day_volume")
-            try:
-                if vol is not None and float(vol) >= float(min_volume_eth):
-                    filtered.append(c)
-            except Exception:
-                continue
-        return {"collections": filtered}
+     
+        return {"collections": collections}
 
     async def get_collections(
         self,
