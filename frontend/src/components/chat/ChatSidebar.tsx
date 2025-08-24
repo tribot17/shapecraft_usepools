@@ -3,6 +3,7 @@
 import AuthModal from "@/components/auth/AuthModal";
 import ProfileModal from "@/components/auth/ProfileModal";
 import { useConditionalWallet } from "@/hooks/useConditionalWallet";
+import { useMyPools } from "@/hooks/useMyPools";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -23,6 +24,7 @@ export default function ChatSidebar() {
   const [authOpen, setAuthOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const { user, requiresWallet } = useConditionalWallet();
+  const { hasPools, poolCount } = useMyPools();
 
   const [chats, setChats] = useState<Chat[]>([]);
   const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
@@ -68,7 +70,7 @@ export default function ChatSidebar() {
   };
 
   return (
-    <aside className="w-[280px] h-screen fixed left-[80px] top-0 bg-[#141414] border-r border-white/5 z-[10000]">
+    <aside className="w-[280px] h-screen fixed top-0 bg-[#141414] border-r border-white/5 z-[10000]">
       <div className="flex flex-col h-full">
         <div className="p-4 border-b border-white/5">
           <div className="flex flex-col gap-4 mb-4">
@@ -121,6 +123,32 @@ export default function ChatSidebar() {
               </svg>
               Wallets
             </Link>
+            {hasPools && (
+              <Link
+                href="/my-pools"
+                className="flex items-center gap-2 text-sm text-white/60 hover:text-white transition-colors"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  className="w-4 h-4"
+                >
+                  <path d="M8.25 10.875a2.625 2.625 0 1 1 5.25 0 2.625 2.625 0 0 1-5.25 0Z" />
+                  <path
+                    fillRule="evenodd"
+                    d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25Zm-1.125 4.5a4.125 4.125 0 1 0 2.338 7.524l2.007 2.006a.75.75 0 1 0 1.06-1.06L14.274 13.214a4.125 4.125 0 0 0-3.399-6.464Z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                My Pools
+                {poolCount > 0 && (
+                  <span className="bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full">
+                    {poolCount}
+                  </span>
+                )}
+              </Link>
+            )}
             <Link
               href="/test-pool"
               className="flex items-center gap-2 text-sm text-white/60 hover:text-white transition-colors"

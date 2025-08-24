@@ -285,7 +285,7 @@ export default function TestPoolPage() {
               <h3 className="font-semibold text-green-800 mb-2">
                 ✅ Pool Created Successfully!
               </h3>
-              <div className="text-sm text-green-700">
+              <div className="text-sm text-green-700 mb-4">
                 <p>
                   <strong>Pool ID:</strong> {result.id}
                 </p>
@@ -304,6 +304,25 @@ export default function TestPoolPage() {
                 <p>
                   <strong>Sell Price:</strong> {result.sellPrice} wei
                 </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex space-x-3 mb-4">
+                <button
+                  onClick={() => (window.location.href = "/my-pools")}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm"
+                >
+                  View My Pools
+                </button>
+                <button
+                  onClick={() => {
+                    setResult(null);
+                    setError(null);
+                  }}
+                  className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 text-sm"
+                >
+                  Create Another Pool
+                </button>
               </div>
 
               {/* Raw JSON for debugging */}
