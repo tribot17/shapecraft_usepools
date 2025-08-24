@@ -1,16 +1,25 @@
 "use client";
 
+import { useUserContext } from "@/context/userContext";
+import { useWeb3 } from "@/hooks/useWeb3";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useEffect, useState } from "react";
 
 type Props = {
   open: boolean;
   onClose: () => void;
-  onLoggedIn: (user: { email: string; user_id?: string }) => void;
+  onLoggedIn: (user: {
+    email?: string;
+    user_id?: string;
+    walletAddress?: string;
+  }) => void;
 };
 
 export default function AuthModal({ open, onClose, onLoggedIn }: Props) {
   const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
-  const [mode, setMode] = useState<"login" | "signup" | "verify">("login");
+  const [mode, setMode] = useState<"wallet" | "legacy" | "signup" | "verify">(
+    "wallet"
+  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
@@ -18,9 +27,13 @@ export default function AuthModal({ open, onClose, onLoggedIn }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
 
+  // Wallet authentication hooks
+  const { address, isConnected } = useWeb3();
+  const { signIn, isLoading, user } = useUserContext();
+
   useEffect(() => {
     if (!open) {
-      setMode("login");
+      setMode("wallet");
       setEmail("");
       setPassword("");
       setCode("");
@@ -29,11 +42,45 @@ export default function AuthModal({ open, onClose, onLoggedIn }: Props) {
     }
   }, [open]);
 
+  // Handle wallet authentication success
+  useEffect(() => {
+    if (user && open) {
+      onLoggedIn({
+        walletAddress: user.walletAddress,
+        user_id: user.id,
+      });
+      onClose();
+    }
+  }, [user, open, onLoggedIn, onClose]);
+
   if (!open) return null;
+
+  async function handleWalletSignIn() {
+    if (!isConnected) {
+      setError("Please connect your wallet first");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const success = await signIn();
+      if (!success) {
+        setError("Failed to authenticate with wallet");
+      }
+    } catch {
+      setError("Authentication failed");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true); setError(null); setInfo(null);
+    setLoading(true);
+    setError(null);
+    setInfo(null);
     try {
       const res = await fetch(`${API_BASE}/auth/signup`, {
         method: "POST",
@@ -41,10 +88,10 @@ export default function AuthModal({ open, onClose, onLoggedIn }: Props) {
         body: JSON.stringify({ email, password }),
       });
       if (!res.ok) throw new Error(await res.text());
-      const data = await res.json();
+      await res.json();
       setInfo("Verification code sent to your email.");
       setMode("verify");
-    } catch (err: any) {
+    } catch {
       setError("Sign up failed");
     } finally {
       setLoading(false);
@@ -53,7 +100,9 @@ export default function AuthModal({ open, onClose, onLoggedIn }: Props) {
 
   async function handleVerify(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true); setError(null); setInfo(null);
+    setLoading(true);
+    setError(null);
+    setInfo(null);
     try {
       const res = await fetch(`${API_BASE}/auth/verify`, {
         method: "POST",
@@ -62,8 +111,8 @@ export default function AuthModal({ open, onClose, onLoggedIn }: Props) {
       });
       if (!res.ok) throw new Error(await res.text());
       setInfo("Email verified. You can log in now.");
-      setMode("login");
-    } catch (err: any) {
+      setMode("legacy");
+    } catch {
       setError("Verification failed");
     } finally {
       setLoading(false);
@@ -72,7 +121,9 @@ export default function AuthModal({ open, onClose, onLoggedIn }: Props) {
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true); setError(null); setInfo(null);
+    setLoading(true);
+    setError(null);
+    setInfo(null);
     try {
       const res = await fetch(`${API_BASE}/auth/login`, {
         method: "POST",
@@ -85,24 +136,78 @@ export default function AuthModal({ open, onClose, onLoggedIn }: Props) {
       localStorage.setItem("scoobyUser", JSON.stringify(user));
       onLoggedIn(user);
       onClose();
-    } catch (err: any) {
+    } catch {
       setError("Login failed");
     } finally {
       setLoading(false);
     }
   }
 
+  const getTitle = () => {
+    switch (mode) {
+      case "wallet":
+        return "Connect Wallet";
+      case "legacy":
+        return "Log in";
+      case "signup":
+        return "Sign up";
+      case "verify":
+        return "Verify email";
+      default:
+        return "Connect Wallet";
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-md">
       <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0a0a0a] p-6 shadow-2xl relative z-[10000]">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-white text-lg font-semibold">
-            {mode === "login" ? "Log in" : mode === "signup" ? "Sign up" : "Verify email"}
-          </h2>
-          <button onClick={onClose} className="text-white/50 hover:text-white">✕</button>
+          <h2 className="text-white text-lg font-semibold">{getTitle()}</h2>
+          <button onClick={onClose} className="text-white/50 hover:text-white">
+            ✕
+          </button>
         </div>
 
-        {mode === "login" && (
+        {mode === "wallet" && (
+          <div className="space-y-4">
+            <div className="text-center space-y-3">
+              <p className="text-white/60 text-sm">
+                Connect your wallet to access your account
+              </p>
+
+              <div className="flex justify-center">
+                <ConnectButton />
+              </div>
+
+              {isConnected && (
+                <div className="space-y-3">
+                  <p className="text-white/80 text-sm">
+                    Wallet connected: {address?.slice(0, 6)}...
+                    {address?.slice(-4)}
+                  </p>
+                  <button
+                    onClick={handleWalletSignIn}
+                    disabled={loading || isLoading}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2.5 text-sm font-medium disabled:opacity-50"
+                  >
+                    {loading || isLoading
+                      ? "Authenticating..."
+                      : "Sign In with Wallet"}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {error && (
+              <p className="text-red-400 text-sm text-center">{error}</p>
+            )}
+            {info && (
+              <p className="text-white/60 text-sm text-center">{info}</p>
+            )}
+          </div>
+        )}
+
+        {mode === "legacy" && (
           <form onSubmit={handleLogin} className="space-y-4">
             <input
               type="email"
@@ -122,10 +227,33 @@ export default function AuthModal({ open, onClose, onLoggedIn }: Props) {
             />
             {error && <p className="text-red-400 text-sm">{error}</p>}
             {info && <p className="text-white/60 text-sm">{info}</p>}
-            <button disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2.5 text-sm font-medium">
+            <button
+              disabled={loading}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2.5 text-sm font-medium"
+            >
               {loading ? "Loading..." : "Log in"}
             </button>
-            <p className="text-white/50 text-sm text-center">No account? <button type="button" onClick={() => setMode("signup")} className="text-blue-400 hover:underline">Sign up</button></p>
+            <div className="text-center space-y-2">
+              <p className="text-white/50 text-sm">
+                No account?{" "}
+                <button
+                  type="button"
+                  onClick={() => setMode("signup")}
+                  className="text-blue-400 hover:underline"
+                >
+                  Sign up
+                </button>
+              </p>
+              <p className="text-white/50 text-sm">
+                <button
+                  type="button"
+                  onClick={() => setMode("wallet")}
+                  className="text-blue-400 hover:underline"
+                >
+                  Back to wallet login
+                </button>
+              </p>
+            </div>
           </form>
         )}
 
@@ -149,10 +277,33 @@ export default function AuthModal({ open, onClose, onLoggedIn }: Props) {
             />
             {error && <p className="text-red-400 text-sm">{error}</p>}
             {info && <p className="text-white/60 text-sm">{info}</p>}
-            <button disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2.5 text-sm font-medium">
+            <button
+              disabled={loading}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2.5 text-sm font-medium"
+            >
               {loading ? "Loading..." : "Send code"}
             </button>
-            <p className="text-white/50 text-sm text-center">Have an account? <button type="button" onClick={() => setMode("login")} className="text-blue-400 hover:underline">Log in</button></p>
+            <div className="text-center space-y-2">
+              <p className="text-white/50 text-sm">
+                Have an account?{" "}
+                <button
+                  type="button"
+                  onClick={() => setMode("legacy")}
+                  className="text-blue-400 hover:underline"
+                >
+                  Log in
+                </button>
+              </p>
+              <p className="text-white/50 text-sm">
+                <button
+                  type="button"
+                  onClick={() => setMode("wallet")}
+                  className="text-blue-400 hover:underline"
+                >
+                  Back to wallet login
+                </button>
+              </p>
+            </div>
           </form>
         )}
 
@@ -168,14 +319,26 @@ export default function AuthModal({ open, onClose, onLoggedIn }: Props) {
             />
             {error && <p className="text-red-400 text-sm">{error}</p>}
             {info && <p className="text-white/60 text-sm">{info}</p>}
-            <button disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2.5 text-sm font-medium">
+            <button
+              disabled={loading}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2.5 text-sm font-medium"
+            >
               {loading ? "Loading..." : "Verify"}
             </button>
+            <div className="text-center">
+              <p className="text-white/50 text-sm">
+                <button
+                  type="button"
+                  onClick={() => setMode("wallet")}
+                  className="text-blue-400 hover:underline"
+                >
+                  Back to wallet login
+                </button>
+              </p>
+            </div>
           </form>
         )}
       </div>
     </div>
   );
 }
-
-

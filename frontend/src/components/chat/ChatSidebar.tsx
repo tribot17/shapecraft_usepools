@@ -200,7 +200,7 @@ export default function ChatSidebar() {
           {user ? (
             <div className="flex items-center justify-between gap-2">
               <div className="text-white/80 text-sm truncate">
-                Connecté en tant que{" "}
+                Connected as{" "}
                 <span className="text-white">
                   {user.walletAddress.slice(0, 6)}...
                   {user.walletAddress.slice(-4)}
@@ -216,7 +216,7 @@ export default function ChatSidebar() {
           ) : requiresWallet ? (
             <div className="text-center">
               <p className="text-white/60 text-sm mb-2">
-                Wallet requis pour cette page
+                Wallet is required to use this page
               </p>
             </div>
           ) : (
@@ -224,21 +224,19 @@ export default function ChatSidebar() {
               onClick={() => setAuthOpen(true)}
               className="w-full bg-white/5 hover:bg-white/10 text-white text-sm font-medium rounded-lg px-4 py-2 transition-colors"
             >
-              Se connecter
+              Connect
             </button>
           )}
         </div>
         <AuthModal
           open={authOpen}
           onClose={() => setAuthOpen(false)}
-          onLoggedIn={() => {}} // Le contexte gère maintenant l'authentification
+          onLoggedIn={() => {}}
         />
         {user && (
           <ProfileModal
             open={profileOpen}
             onClose={() => setProfileOpen(false)}
-            email={user.walletAddress}
-            onSaved={() => {}} // Le contexte gère maintenant les mises à jour
           />
         )}
       </div>
