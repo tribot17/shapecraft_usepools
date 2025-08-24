@@ -39,11 +39,11 @@ export async function POST(req: Request) {
     creatorFee,
     buyPrice,
     sellPrice,
-    chainId,
     collection_slug,
   } = body;
   console.log("🚀 ~ POST ~ collection_slug:", collection_slug);
 
+  const chainId = 11011;
   const creatorPrivateKey = decryptPrivateKeyAny(
     creator.managedWallets[0].encryptedPrivateKey
   );
