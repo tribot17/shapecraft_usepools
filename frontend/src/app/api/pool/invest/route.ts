@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
       walletAddress = session.user.walletAddress;
     }
 
-    const user = await getUserByWalletAddress(walletAddress);
+    const user = await getUserByWalletAddress(walletAddress.toLowerCase());
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
