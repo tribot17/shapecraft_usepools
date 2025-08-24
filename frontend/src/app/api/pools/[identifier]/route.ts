@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 interface RouteParams {
   params: Promise<{
@@ -8,7 +8,7 @@ interface RouteParams {
 }
 
 // GET /api/pools/[identifier] - Get a specific pool by ID or pool address
-export async function GET({ params }: RouteParams) {
+export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const { identifier } = await params;
 
